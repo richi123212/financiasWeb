@@ -48,7 +48,7 @@ const STORAGE_KEY = 'finanzshield_local_state_v1';
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(true);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
 
   // Estados de datos
@@ -155,11 +155,12 @@ export default function App() {
         supabase.from('gastos_futuros').select('*').eq('user_id', userId).order('dia_mes', { ascending: true }),
       ]);
 
-      if (tRes.data && tRes.data.length > 0) setTarjetas(tRes.data as Tarjeta[]);
-      if (msiRes.data) setComprasMsi(msiRes.data as CompraMSI[]);
-      if (txRes.data) setTransacciones(txRes.data as Transaccion[]);
-      if (invRes.data) setInversiones(invRes.data as Inversion[]);
-      if (gfRes.data) setGastosFijos(gfRes.data as GastoFuturoFijo[]);
+      setTarjetas((tRes.data as Tarjeta[]) || []);
+      setComprasMsi((msiRes.data as CompraMSI[]) || []);
+      setTransacciones((txRes.data as Transaccion[]) || []);
+      setInversiones((invRes.data as Inversion[]) || []);
+      setGastosFijos((gfRes.data as GastoFuturoFijo[]) || []);
+      setSaldoBaseEfectivo(0);
     } catch (error) {
       console.error('Error fetching Supabase data:', error);
     }
@@ -424,7 +425,7 @@ export default function App() {
       await supabase.auth.signOut();
     }
     setUser(null);
-    setIsDemoMode(true);
+    setIsDemoMode(false);
   };
 
   // Si está cargando auth inicial
