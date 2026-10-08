@@ -436,7 +436,7 @@ export default function App() {
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center animate-pulse border border-emerald-500/30">
             <Shield className="w-6 h-6 animate-spin" />
           </div>
-          <p className="text-sm font-semibold tracking-wide text-slate-300">Cargando FinanzShield...</p>
+          <p className="text-sm font-semibold tracking-wide text-slate-300">Cargando Finanzas...</p>
         </div>
       </div>
     );
@@ -637,7 +637,7 @@ export default function App() {
                   <CreditCard className="w-10 h-10 text-slate-500 mx-auto mb-2" />
                   <h3 className="text-sm font-semibold text-slate-200">Sin tarjetas de crédito</h3>
                   <p className="text-xs text-slate-400 mt-1 mb-4">
-                    Agrega tu primera tarjeta para que FinanzShield calcule automáticamente tus cortes y fechas límites.
+                    Agrega tu primera tarjeta para que la app calcule automáticamente tus cortes y fechas límites.
                   </p>
                   <button
                     onClick={() => setIsCardsModalOpen(true)}

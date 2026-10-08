@@ -74,7 +74,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode })
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight font-['Plus_Jakarta_Sans']">
-            Finanz<span className="text-emerald-400">Shield</span>
+            Finan<span className="text-emerald-400">zas</span>
           </h1>
           <p className="text-sm text-slate-400 mt-2">
             Blindaje total contra deudas de TDC, control de MSI y cálculo de liquidez real.

@@ -263,7 +263,7 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
                 <CreditCard className="w-10 h-10 text-slate-500 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-slate-300">No hay tarjetas registradas</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Agrega tus tarjetas de crédito para que FinanzShield calcule tus días de corte y blindaje.
+                  Agrega tus tarjetas de crédito para que la app calcule tus días de corte y blindaje.
                 </p>
               </div>
             ) : (

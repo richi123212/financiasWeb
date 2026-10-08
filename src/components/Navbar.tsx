@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold tracking-tight text-white font-['Plus_Jakarta_Sans']">
-                  Finanz<span className="text-emerald-400">Shield</span>
+                  Finan<span className="text-emerald-400">zas</span>
                 </span>
                 <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
                   v1.0
