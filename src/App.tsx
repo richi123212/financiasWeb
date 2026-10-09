@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Plus,
   CreditCard,
+  Coins,
+  Calculator,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type {
@@ -24,7 +26,9 @@ import type {
 import {
   calcularMetricasGlobales,
   calcularResumenTarjeta,
+  calcularInfoQuincena,
   formatCurrency,
+  formatPercent,
 } from './utils/financeCalculators';
 import {
   INITIAL_TARJETAS,
@@ -244,6 +248,11 @@ export default function App() {
   const resumenesTarjetas = useMemo(() => {
     return tarjetas.map((t) => calcularResumenTarjeta(t, comprasMsi));
   }, [tarjetas, comprasMsi]);
+
+  // Cálculo de Radar Quincenal ($6,750 quincenal) y Gasto Diario Permitido
+  const infoQuincena = useMemo(() => {
+    return calcularInfoQuincena(new Date(), metricas.margenDespuesDeGastosFijos, 6750);
+  }, [metricas.margenDespuesDeGastosFijos]);
 
   // 3. Manejadores de acciones (Transacciones, Tarjetas, MSI, Inversiones, Gastos Fijos)
   const handleRegistrarTransaccion = async (data: {
@@ -618,117 +627,293 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. KPIS DE CABECERA: RESUMEN DE LIQUIDEZ REAL */}
+        {/* 2. KPIS DE CABECERA: RESUMEN DE LIQUIDEZ Y CRÉDITO */}
         <section aria-label="Métricas Principales de Liquidez">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* KPI 1: Dinero que tienes actualmente */}
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                <span className="font-semibold flex items-center gap-1.5 text-emerald-400">
-                  <Wallet className="w-4 h-4 text-emerald-400" />
-                  Dinero Actual
+            {/* KPI 1: Dinero Actual Digital (lo que tengo al día de hoy) */}
+            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
+                  <span className="font-semibold flex items-center gap-1.5 text-emerald-400">
+                    <Wallet className="w-4 h-4 text-emerald-400" />
+                    Dinero Actual Digital
+                  </span>
+                  <button
+                    onClick={() => {
+                      setTxModalPreset({ tipo: 'ingreso' });
+                      setIsTxModalOpen(true);
+                    }}
+                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                    title="Registrar dinero disponible en tu cuenta o sueldo"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Añadir Saldo</span>
+                  </button>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {formatCurrency(metricas.saldoEfectivoDebito)}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tu dinero líquido real en cuenta hoy
+                </p>
+              </div>
+
+              {/* Resta limpia de deudas totales abajo para que no se junte */}
+              <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 bg-slate-900/40 -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Resta deudas totales:</span>
+                <span className={`font-bold ${metricas.margenSeguroLibre >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(metricas.saldoEfectivoDebito)} − {formatCurrency(metricas.fondoBlindajeTdc)} = {formatCurrency(metricas.margenSeguroLibre)}
                 </span>
-                <button
-                  onClick={() => {
-                    setTxModalPreset({ tipo: 'ingreso' });
-                    setIsTxModalOpen(true);
-                  }}
-                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
-                  title="Registrar dinero disponible en tu cuenta o sueldo"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Añadir Saldo</span>
-                </button>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {formatCurrency(metricas.saldoEfectivoDebito)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-                Efectivo y saldo en débito disponible
-              </p>
             </div>
 
-            {/* KPI 2: Deudas Totales (Tarjetas de Crédito + MSI) */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-[#161F30] border border-indigo-500/30 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-all">
-              <div className="flex items-center justify-between text-indigo-300 text-xs mb-2">
-                <span className="font-semibold flex items-center gap-1.5 text-indigo-300">
-                  <Lock className="w-4 h-4 text-indigo-400" />
-                  Deudas Totales
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  TDC + MSI
-                </span>
+            {/* KPI 2: Línea de Crédito Disponible (suma de disponible en TDC) */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-[#161F30] border border-indigo-500/30 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-indigo-300 text-xs mb-2">
+                  <span className="font-semibold flex items-center gap-1.5 text-indigo-300">
+                    <CreditCard className="w-4 h-4 text-indigo-400" />
+                    Línea de Crédito Disponible
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    TDC
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-indigo-200 tracking-tight">
+                  {formatCurrency(metricas.lineaCreditoDisponible)}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Suma de crédito libre en tus tarjetas
+                </p>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-indigo-200 tracking-tight">
-                {formatCurrency(metricas.fondoBlindajeTdc)}
+
+              <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 bg-slate-900/40 -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Límite total: <strong className="text-slate-300">{formatCurrency(metricas.limiteCreditoTotal)}</strong></span>
+                <span>Uso: <strong className="text-indigo-300">{formatPercent(metricas.porcentajeUsoGlobal)}</strong></span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                Saldo TDC ({formatCurrency(metricas.totalDeudaTdc)}) + Cuotas MSI ({formatCurrency(metricas.cuotasMsiMesTotal)})
-              </p>
             </div>
 
-            {/* KPI 3: Gastos Futuros Totales */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/30 to-[#161F30] border border-amber-500/30 shadow-xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
-              <div className="flex items-center justify-between text-amber-300 text-xs mb-2">
-                <span className="font-semibold flex items-center gap-1.5 text-amber-400">
-                  <CalendarClock className="w-4 h-4 text-amber-400" />
-                  Gastos Futuros Totales
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Por Pagar
-                </span>
+            {/* KPI 3: Deuda Total con Gastos Fijos */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/30 to-[#161F30] border border-purple-500/30 shadow-xl relative overflow-hidden group hover:border-purple-500/50 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-purple-300 text-xs mb-2">
+                  <span className="font-semibold flex items-center gap-1.5 text-purple-300">
+                    <Lock className="w-4 h-4 text-purple-400" />
+                    Deuda Total con Gastos Fijos
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    Compromisos
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-purple-200 tracking-tight">
+                  {formatCurrency(metricas.deudaTotalConGastosFijos)}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Deudas de tarjetas + Pagos fijos del mes
+                </p>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-amber-300 tracking-tight">
-                {formatCurrency(metricas.gastosFuturosPendientes)}
+
+              <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 bg-slate-900/40 -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <span>TDC: <strong className="text-indigo-300">{formatCurrency(metricas.fondoBlindajeTdc)}</strong></span>
+                <span>Fijos: <strong className="text-amber-300">{formatCurrency(metricas.gastosFuturosPendientes)}</strong></span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                Compromisos y servicios fijos del mes pendientes
-              </p>
             </div>
 
-            {/* KPI 4: Margen Seguro Libre (Tu Liquidez Real) */}
+            {/* KPI 4: Margen Seguro Libre (Tu Liquidez Real Final tras TODO) */}
             <div
-              className={`p-5 rounded-2xl shadow-xl relative overflow-hidden border transition-all ${
-                metricas.margenSeguroLibre >= 0
+              className={`p-5 rounded-2xl shadow-xl relative overflow-hidden border transition-all flex flex-col justify-between ${
+                metricas.margenDespuesDeGastosFijos >= 0
                   ? 'bg-gradient-to-br from-emerald-950/40 to-[#161F30] border-emerald-500/30 shadow-emerald-950/20'
                   : 'bg-gradient-to-br from-red-950/40 to-[#161F30] border-red-500/50 shadow-red-950/20'
               }`}
             >
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span
-                  className={`font-bold flex items-center gap-1.5 ${
-                    metricas.margenSeguroLibre >= 0 ? 'text-emerald-300' : 'text-red-400'
+              <div>
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span
+                    className={`font-bold flex items-center gap-1.5 ${
+                      metricas.margenDespuesDeGastosFijos >= 0 ? 'text-emerald-300' : 'text-red-400'
+                    }`}
+                  >
+                    {metricas.margenDespuesDeGastosFijos >= 0 ? (
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <ShieldAlert className="w-4 h-4 text-red-400" />
+                    )}
+                    Margen Seguro Libre
+                  </span>
+                  <span
+                    className={`text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded ${
+                      metricas.margenDespuesDeGastosFijos >= 0
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }`}
+                  >
+                    {metricas.margenDespuesDeGastosFijos >= 0 ? '100% Libre' : 'Déficit'}
+                  </span>
+                </div>
+                <div
+                  className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                    metricas.margenDespuesDeGastosFijos >= 0 ? 'text-emerald-400' : 'text-red-400'
                   }`}
                 >
-                  {metricas.margenSeguroLibre >= 0 ? (
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <ShieldAlert className="w-4 h-4 text-red-400" />
-                  )}
-                  Margen Seguro Libre
-                </span>
-                <span
-                  className={`text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded ${
-                    metricas.margenSeguroLibre >= 0
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  }`}
-                >
-                  {metricas.margenSeguroLibre >= 0 ? 'Libre' : 'Déficit'}
+                  {formatCurrency(metricas.margenDespuesDeGastosFijos)}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Dinero libre tras cubrir TDC y compromisos
+                </p>
+              </div>
+
+              <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 bg-slate-900/40 -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Estado de Blindaje:</span>
+                <span className={`font-semibold ${metricas.margenDespuesDeGastosFijos >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {metricas.margenDespuesDeGastosFijos >= 0 ? 'Protegido sin deudas' : 'Requiere fondear cuenta'}
                 </span>
               </div>
-              <div
-                className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                  metricas.margenSeguroLibre >= 0 ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {formatCurrency(metricas.margenSeguroLibre)}
+            </div>
+          </div>
+        </section>
+
+        {/* RADAR DE QUINCENA Y PRESUPUESTO DIARIO PERMITIDO */}
+        <section aria-label="Radar de Quincena y Gasto Diario">
+          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#141E33] via-[#16233B] to-[#121A28] border border-indigo-500/30 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <CalendarClock className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                    Radar de Quincena (Pago de {formatCurrency(infoQuincena.sueldoQuincenal)})
+                  </span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    Día {infoQuincena.diaPago}
+                  </span>
+                </div>
+
+                <div className="text-xl sm:text-2xl font-black text-white flex items-baseline gap-2 flex-wrap">
+                  <span>Faltan</span>
+                  <span className="text-indigo-400 text-3xl font-black">
+                    {infoQuincena.diasRestantes} {infoQuincena.diasRestantes === 1 ? 'día' : 'días'}
+                  </span>
+                  <span className="text-slate-300 text-sm font-normal">
+                    para tu siguiente pago ({infoQuincena.fechaProximoPago})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-slate-400 pt-1">
+                  <div className="w-48 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/80">
+                    <div
+                      className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${infoQuincena.porcentajeCiclo}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Avance de quincena: {infoQuincena.porcentajeCiclo}%
+                  </span>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                {metricas.margenSeguroLibre >= 0
-                  ? 'Dinero 100% libre después de cubrir el blindaje de deudas'
-                  : 'Alerta: Déficit para cubrir el pago para no generar intereses'}
-              </p>
+
+              {/* Cuadro destacado: Presupuesto diario que podrías gastar al día */}
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 flex items-center gap-4 shadow-xl min-w-[270px]">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 flex-shrink-0">
+                  <Coins className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+                    Podrías gastar al día:
+                  </span>
+                  <div className={`text-2xl font-black tracking-tight ${infoQuincena.gastoDiarioRecomendado > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatCurrency(infoQuincena.gastoDiarioRecomendado)}
+                    <span className="text-xs font-normal text-slate-400"> / día</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Para llegar perfecto a tu quincena
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PANEL GRIS: DESGLOSE DE COMPROMISOS (LO QUE TE RESTA POR PAGAR) */}
+        <section aria-label="Desglose de Compromisos en Gris">
+          <div className="p-5 rounded-2xl bg-slate-900/85 border border-slate-800 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+                  <Calculator className="w-4 h-4 text-slate-300" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                    Balance de Compromisos (Lo que resta por liquidar)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Resta paso a paso contra tu Dinero Actual Digital ({formatCurrency(metricas.saldoEfectivoDebito)})
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700 self-start sm:self-auto font-medium">
+                Sueldo próximo: +{formatCurrency(infoQuincena.sueldoQuincenal)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              {/* Bloque 1: Resta de Deudas Totales */}
+              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 hover:border-slate-600 transition-all">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                  <span className="font-semibold text-slate-300">1. Deudas Totales por Pagar</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                    TDC + MSI
+                  </span>
+                </div>
+                <div className="text-xl font-black text-indigo-300 tracking-tight">
+                  {formatCurrency(metricas.fondoBlindajeTdc)}
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Te restaría en cuenta:</span>
+                  <strong className={metricas.margenSeguroLibre >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                    {formatCurrency(metricas.margenSeguroLibre)}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Bloque 2: Resta de Pagos Fijos */}
+              <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 hover:border-slate-600 transition-all">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                  <span className="font-semibold text-slate-300">2. Pagos Fijos Restantes</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                    Servicios / Renta
+                  </span>
+                </div>
+                <div className="text-xl font-black text-amber-300 tracking-tight">
+                  {formatCurrency(metricas.gastosFuturosPendientes)}
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Te restaría en cuenta:</span>
+                  <strong className="text-slate-200 font-bold">
+                    {formatCurrency(metricas.saldoEfectivoDebito - metricas.gastosFuturosPendientes)}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Bloque 3: Deuda Total con Gastos Fijos */}
+              <div className="p-4 rounded-xl bg-slate-800/70 border border-slate-700 hover:border-slate-600 transition-all">
+                <div className="flex items-center justify-between text-xs text-slate-300 mb-1.5">
+                  <span className="font-bold text-white">3. Deuda Total con Gastos Fijos</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    Total Global
+                  </span>
+                </div>
+                <div className="text-xl font-black text-white tracking-tight">
+                  {formatCurrency(metricas.deudaTotalConGastosFijos)}
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Restante tras TODO:</span>
+                  <strong className={metricas.margenDespuesDeGastosFijos >= 0 ? 'text-emerald-400 font-extrabold' : 'text-red-400 font-extrabold'}>
+                    {formatCurrency(metricas.margenDespuesDeGastosFijos)}
+                  </strong>
+                </div>
+              </div>
             </div>
           </div>
         </section>

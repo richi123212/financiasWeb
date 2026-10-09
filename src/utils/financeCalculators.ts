@@ -1,4 +1,4 @@
-import type { Tarjeta, CompraMSI, Transaccion, Inversion, GastoFuturoFijo, ResumenTarjetaCalculado, MetricasFinancieras } from '../types';
+import type { Tarjeta, CompraMSI, Transaccion, Inversion, GastoFuturoFijo, ResumenTarjetaCalculado, MetricasFinancieras, InfoQuincena } from '../types';
 
 /**
  * Calcula los días restantes hasta el día especificado del mes (1 a 31).
@@ -184,9 +184,19 @@ export function calcularMetricasGlobales(
     .filter((g) => !g.pagado_este_mes)
     .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
 
+  const deudaTotalConGastosFijos = Number((fondoBlindajeTdc + gastosFuturosPendientes).toFixed(2));
   const margenDespuesDeGastosFijos = Number((margenSeguroLibre - gastosFuturosPendientes).toFixed(2));
 
-  // 9. Semáforo de salud financiera
+  // 9. Suma de línea de crédito disponible total
+  const lineaCreditoDisponible = Number(
+    tarjetas.reduce((acc, t) => {
+      const limite = Number(t.limite_credito || 0);
+      const saldo = Number(t.saldo_actual || 0);
+      return acc + Math.max(0, limite - saldo);
+    }, 0).toFixed(2)
+  );
+
+  // 10. Semáforo de salud financiera
   let estadoSemaforo: 'seguro' | 'alerta' | 'peligro' = 'seguro';
   if (margenSeguroLibre < 0 || porcentajeUsoGlobal >= 70) {
     estadoSemaforo = 'peligro';
@@ -198,6 +208,7 @@ export function calcularMetricasGlobales(
 
   return {
     saldoEfectivoDebito: Number(balanceEfectivo.toFixed(2)),
+    lineaCreditoDisponible,
     fondoBlindajeTdc,
     margenSeguroLibre,
     saldoInvertidoTotal: Number(saldoInvertidoTotal.toFixed(2)),
@@ -208,8 +219,64 @@ export function calcularMetricasGlobales(
     limiteCreditoTotal: Number(limiteCreditoTotal.toFixed(2)),
     porcentajeUsoGlobal,
     gastosFuturosPendientes: Number(gastosFuturosPendientes.toFixed(2)),
+    deudaTotalConGastosFijos,
     margenDespuesDeGastosFijos,
     estadoSemaforo,
+  };
+}
+
+/**
+ * Calcula el radar de quincena: días restantes para el siguiente pago de $6,750
+ * y el presupuesto diario recomendado.
+ */
+export function calcularInfoQuincena(
+  fechaBase: Date = new Date(),
+  margenDisponible: number = 0,
+  sueldoQuincenal: number = 6750
+): InfoQuincena {
+  const anio = fechaBase.getFullYear();
+  const mes = fechaBase.getMonth();
+  const diaHoy = fechaBase.getDate();
+  const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
+
+  let diaPago = 15;
+  let fechaProximoPagoObj: Date;
+  let diasTotalesCiclo = 15;
+  let diasTranscurridos = diaHoy;
+
+  if (diaHoy <= 15) {
+    diaPago = 15;
+    fechaProximoPagoObj = new Date(anio, mes, 15, 23, 59, 59);
+    diasTotalesCiclo = 15;
+    diasTranscurridos = diaHoy;
+  } else {
+    diaPago = ultimoDiaMes;
+    fechaProximoPagoObj = new Date(anio, mes, ultimoDiaMes, 23, 59, 59);
+    diasTotalesCiclo = ultimoDiaMes - 15;
+    diasTranscurridos = diaHoy - 15;
+  }
+
+  const diffTime = fechaProximoPagoObj.getTime() - fechaBase.getTime();
+  const diasRestantes = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+  const gastoDiarioRecomendado = diasRestantes > 0
+    ? Number((Math.max(0, margenDisponible) / diasRestantes).toFixed(2))
+    : Number(Math.max(0, margenDisponible).toFixed(2));
+
+  const porcentajeCiclo = Math.min(100, Math.max(0, Math.round((diasTranscurridos / diasTotalesCiclo) * 100)));
+
+  const opcionesFecha: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+  const fechaProximoPago = fechaProximoPagoObj.toLocaleDateString('es-MX', opcionesFecha);
+
+  return {
+    diasRestantes,
+    fechaProximoPago,
+    diaPago,
+    sueldoQuincenal,
+    gastoDiarioRecomendado,
+    diasTotalesCiclo,
+    diasTranscurridos,
+    porcentajeCiclo,
   };
 }
 

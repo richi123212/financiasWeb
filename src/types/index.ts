@@ -75,9 +75,10 @@ export interface ResumenTarjetaCalculado {
 }
 
 export interface MetricasFinancieras {
-  saldoEfectivoDebito: number;
-  fondoBlindajeTdc: number; // Dinero que DEBE estar apartado para pagar TDC + MSI del ciclo
-  margenSeguroLibre: number; // Efectivo - Fondo de Blindaje
+  saldoEfectivoDebito: number; // Dinero Actual Digital (lo que tienes hoy)
+  lineaCreditoDisponible: number; // Suma de línea de crédito disponible en tarjetas
+  fondoBlindajeTdc: number; // Deudas Totales (Saldo TDC + MSI)
+  margenSeguroLibre: number; // Dinero Actual Digital - Deudas Totales
   saldoInvertidoTotal: number;
   rendimientoMensualEstimado: number;
   rendimientoAnualEstimadoTotal: number;
@@ -85,9 +86,21 @@ export interface MetricasFinancieras {
   cuotasMsiMesTotal: number;
   limiteCreditoTotal: number;
   porcentajeUsoGlobal: number;
-  gastosFuturosPendientes: number;
-  margenDespuesDeGastosFijos: number;
+  gastosFuturosPendientes: number; // Lo que resta de pagos fijos
+  deudaTotalConGastosFijos: number; // Deuda Total + Gastos Fijos
+  margenDespuesDeGastosFijos: number; // Lo que resta tras deudas y pagos fijos
   estadoSemaforo: 'seguro' | 'alerta' | 'peligro';
+}
+
+export interface InfoQuincena {
+  diasRestantes: number;
+  fechaProximoPago: string;
+  diaPago: number;
+  sueldoQuincenal: number;
+  gastoDiarioRecomendado: number;
+  diasTotalesCiclo: number;
+  diasTranscurridos: number;
+  porcentajeCiclo: number;
 }
 
 export interface UserProfile {
