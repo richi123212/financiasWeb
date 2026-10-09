@@ -101,6 +101,9 @@ export interface InfoQuincena {
   diasTotalesCiclo: number;
   diasTranscurridos: number;
   porcentajeCiclo: number;
+  netoQuincenaTrasCompromisos: number; // Sueldo Quincenal ($6,750) - (Deudas TDC + Fijos)
+  porcentajeQuincenaComprometido: number; // Porcentaje del sueldo que se va en compromisos
+  saldoTotalProyectadoConQuincena: number; // Saldo total en cuenta al cobrar y pagar todo
 }
 
 export interface UserProfile {

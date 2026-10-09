@@ -11,6 +11,7 @@ import {
   CreditCard,
   Coins,
   Calculator,
+  Sparkles,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type {
@@ -249,10 +250,16 @@ export default function App() {
     return tarjetas.map((t) => calcularResumenTarjeta(t, comprasMsi));
   }, [tarjetas, comprasMsi]);
 
-  // Cálculo de Radar Quincenal ($6,750 quincenal) y Gasto Diario Permitido
+  // Cálculo de Radar Quincenal ($6,750 quincenal), Proyección y Gasto Diario Permitido
   const infoQuincena = useMemo(() => {
-    return calcularInfoQuincena(new Date(), metricas.margenDespuesDeGastosFijos, 6750);
-  }, [metricas.margenDespuesDeGastosFijos]);
+    return calcularInfoQuincena(
+      new Date(),
+      metricas.margenDespuesDeGastosFijos,
+      6750,
+      metricas.deudaTotalConGastosFijos,
+      metricas.saldoEfectivoDebito
+    );
+  }, [metricas.margenDespuesDeGastosFijos, metricas.deudaTotalConGastosFijos, metricas.saldoEfectivoDebito]);
 
   // 3. Manejadores de acciones (Transacciones, Tarjetas, MSI, Inversiones, Gastos Fijos)
   const handleRegistrarTransaccion = async (data: {
@@ -773,10 +780,11 @@ export default function App() {
           </div>
         </section>
 
-        {/* RADAR DE QUINCENA Y PRESUPUESTO DIARIO PERMITIDO */}
-        <section aria-label="Radar de Quincena y Gasto Diario">
-          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#141E33] via-[#16233B] to-[#121A28] border border-indigo-500/30 shadow-2xl relative overflow-hidden">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+        {/* RADAR DE QUINCENA Y PROYECCIÓN: ¿CUÁNTO TE QUEDA AL COBRAR? */}
+        <section aria-label="Radar de Quincena y Proyección">
+          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#141E33] via-[#16233B] to-[#121A28] border border-indigo-500/30 shadow-2xl relative overflow-hidden space-y-5">
+            {/* Fila 1: Cuenta regresiva y Presupuesto diario */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-5 border-b border-indigo-500/20">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
@@ -828,6 +836,89 @@ export default function App() {
                   </div>
                   <p className="text-[10px] text-slate-400 mt-0.5">
                     Para llegar perfecto a tu quincena
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fila 2: Proyección de la Próxima Quincena (¿Qué tendrías o perderías al pagar todo?) */}
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Proyección Próxima Quincena: ¿Qué tendrías o perderías al pagar deudas y fijos?
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Sueldo: <strong className="text-emerald-300 font-bold">{formatCurrency(infoQuincena.sueldoQuincenal)}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Cuadro A: Lo que tendrías / te quedaría limpio de la quincena */}
+                <div
+                  className={`p-4 rounded-xl border transition-all ${
+                    infoQuincena.netoQuincenaTrasCompromisos >= 0
+                      ? 'bg-emerald-950/25 border-emerald-500/40 hover:border-emerald-500/60'
+                      : 'bg-red-950/25 border-red-500/40 hover:border-red-500/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-semibold text-slate-300">
+                      {infoQuincena.netoQuincenaTrasCompromisos >= 0 ? 'Te Quedaría de tu Quincena:' : 'Te Faltaría / Perderías:'}
+                    </span>
+                    <span
+                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                        infoQuincena.netoQuincenaTrasCompromisos >= 0
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                      }`}
+                    >
+                      {infoQuincena.netoQuincenaTrasCompromisos >= 0 ? 'Limpio' : 'Déficit'}
+                    </span>
+                  </div>
+                  <div
+                    className={`text-2xl font-black tracking-tight ${
+                      infoQuincena.netoQuincenaTrasCompromisos >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {formatCurrency(infoQuincena.netoQuincenaTrasCompromisos)}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {infoQuincena.netoQuincenaTrasCompromisos >= 0
+                      ? `De tus ${formatCurrency(infoQuincena.sueldoQuincenal)}, te sobran ${formatCurrency(infoQuincena.netoQuincenaTrasCompromisos)} tras liquidar compromisos`
+                      : 'Tus deudas superan el sueldo de tu quincena'}
+                  </p>
+                </div>
+
+                {/* Cuadro B: Lo que se va en deudas y fijos */}
+                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-slate-600 transition-all">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-semibold text-slate-300">Comprometido en Deudas:</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                      {infoQuincena.porcentajeQuincenaComprometido}% del sueldo
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-indigo-200 tracking-tight">
+                    {formatCurrency(metricas.deudaTotalConGastosFijos)}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    TDC: {formatCurrency(metricas.fondoBlindajeTdc)} + Fijos: {formatCurrency(metricas.gastosFuturosPendientes)}
+                  </p>
+                </div>
+
+                {/* Cuadro C: Dinero total proyectado en cuenta */}
+                <div className="p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 hover:border-indigo-500/50 transition-all">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-semibold text-indigo-300">Saldo Total al Cobrar:</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      Todo Pagado
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-white tracking-tight">
+                    {formatCurrency(infoQuincena.saldoTotalProyectadoConQuincena)}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Dinero actual ({formatCurrency(metricas.saldoEfectivoDebito)}) + Sueldo − Deudas
                   </p>
                 </div>
               </div>

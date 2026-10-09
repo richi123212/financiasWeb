@@ -232,7 +232,9 @@ export function calcularMetricasGlobales(
 export function calcularInfoQuincena(
   fechaBase: Date = new Date(),
   margenDisponible: number = 0,
-  sueldoQuincenal: number = 6750
+  sueldoQuincenal: number = 6750,
+  totalCompromisos: number = 0,
+  dineroDigitalActual: number = 0
 ): InfoQuincena {
   const anio = fechaBase.getFullYear();
   const mes = fechaBase.getMonth();
@@ -268,6 +270,12 @@ export function calcularInfoQuincena(
   const opcionesFecha: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
   const fechaProximoPago = fechaProximoPagoObj.toLocaleDateString('es-MX', opcionesFecha);
 
+  const netoQuincenaTrasCompromisos = Number((sueldoQuincenal - totalCompromisos).toFixed(2));
+  const porcentajeQuincenaComprometido = sueldoQuincenal > 0
+    ? Number(((totalCompromisos / sueldoQuincenal) * 100).toFixed(1))
+    : 0;
+  const saldoTotalProyectadoConQuincena = Number((dineroDigitalActual + sueldoQuincenal - totalCompromisos).toFixed(2));
+
   return {
     diasRestantes,
     fechaProximoPago,
@@ -277,6 +285,9 @@ export function calcularInfoQuincena(
     diasTotalesCiclo,
     diasTranscurridos,
     porcentajeCiclo,
+    netoQuincenaTrasCompromisos,
+    porcentajeQuincenaComprometido,
+    saldoTotalProyectadoConQuincena,
   };
 }
 
