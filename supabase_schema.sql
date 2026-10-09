@@ -64,6 +64,17 @@ CREATE TABLE IF NOT EXISTS public.gastos_futuros (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 6. TABLA: gym_entrenamientos (Registro de sesiones de entrenamiento de fuerza y sobrecarga progresiva)
+CREATE TABLE IF NOT EXISTS public.gym_entrenamientos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    rutina_nombre TEXT NOT NULL,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    notas TEXT,
+    ejercicios JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -72,6 +83,7 @@ ALTER TABLE public.compras_msi ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transacciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inversiones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gastos_futuros ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gym_entrenamientos ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -94,4 +106,8 @@ CREATE POLICY "Usuarios acceden solo a sus inversiones" ON public.inversiones
 
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus gastos futuros" ON public.gastos_futuros;
 CREATE POLICY "Usuarios acceden solo a sus gastos futuros" ON public.gastos_futuros
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus entrenamientos" ON public.gym_entrenamientos;
+CREATE POLICY "Usuarios acceden solo a sus entrenamientos" ON public.gym_entrenamientos
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

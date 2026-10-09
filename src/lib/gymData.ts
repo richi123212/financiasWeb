@@ -147,9 +147,11 @@ export function calcularRecomendacionSobrecarga(
       (e) => e.nombre.trim().toLowerCase() === nombreEjercicio.trim().toLowerCase()
     );
     if (ej && ej.series && ej.series.length > 0) {
-      // Tomar la serie más pesada o con más reps de esa sesión
-      let mejor = ej.series[0];
-      for (const s of ej.series) {
+      // Filtrar sólo series efectivas si existen, para no considerar el calentamiento como serie máxima
+      const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
+      const pool = efectivas.length > 0 ? efectivas : ej.series;
+      let mejor = pool[0];
+      for (const s of pool) {
         if (s.peso > mejor.peso) {
           mejor = s;
         } else if (s.peso === mejor.peso && s.reps > mejor.reps) {
@@ -316,5 +318,213 @@ export function calcularRecomendacionSobrecarga(
       pesoSugerido: nuevoPeso,
       repsSugeridas: 8,
     };
+  }
+}
+
+/**
+ * ----------------------------------------------------
+ * SUGERENCIA INTELIGENTE DE ACTIVACIÓN / CALENTAMIENTO
+ * Normalmente 2 series preparatorias para activar el músculo
+ * antes de entrar a las series de trabajo pesadas.
+ * ----------------------------------------------------
+ */
+export interface SugerenciaCalentamiento {
+  serie1: { peso: number; reps: number; descripcion: string };
+  serie2: { peso: number; reps: number; descripcion: string };
+}
+
+export function obtenerSugerenciaCalentamiento(
+  pesoTrabajo: number,
+  tipoCarga: 'kg' | 'barras' | 'peso_corporal'
+): SugerenciaCalentamiento {
+  if (tipoCarga === 'peso_corporal') {
+    return {
+      serie1: {
+        peso: 0,
+        reps: 6,
+        descripcion: 'Serie 1: 6 reps controladas y fluidas (irrigación sanguínea y rango articular)',
+      },
+      serie2: {
+        peso: 0,
+        reps: 8,
+        descripcion: 'Serie 2: 8 reps con pausa de 1 segundo abajo (activación neuromuscular)',
+      },
+    };
+  }
+
+  if (tipoCarga === 'barras') {
+    const s1Barras = Math.max(1, Math.round(pesoTrabajo * 0.45));
+    const s2Barras = Math.max(s1Barras, Math.round(pesoTrabajo * 0.7));
+    return {
+      serie1: {
+        peso: s1Barras,
+        reps: 12,
+        descripcion: `Serie 1: ${s1Barras} barra${s1Barras > 1 ? 's' : ''} × 12 reps (~45% de carga para lubricar articulación)`,
+      },
+      serie2: {
+        peso: s2Barras,
+        reps: 8,
+        descripcion: `Serie 2: ${s2Barras} barra${s2Barras > 1 ? 's' : ''} × 8 reps (~70% de carga para activar el músculo sin fatiga)`,
+      },
+    };
+  }
+
+  // Carga en KG
+  const redondear = (p: number) => {
+    if (p <= 4) return Math.max(2, Math.round(p));
+    return Math.max(2, Math.round(p / 2.5) * 2.5);
+  };
+
+  const s1Peso = Math.max(2, redondear(pesoTrabajo * 0.5));
+  const s2Peso = Math.max(s1Peso, redondear(pesoTrabajo * 0.72));
+
+  return {
+    serie1: {
+      peso: s1Peso,
+      reps: 12,
+      descripcion: `Serie 1: ${s1Peso}kg × 12 reps (~50% de peso para bombeo y activación)`,
+    },
+    serie2: {
+      peso: s2Peso,
+      reps: 8,
+      descripcion: `Serie 2: ${s2Peso}kg × 8 reps (~70% de peso para preparar conexión neuromuscular)`,
+    },
+  };
+}
+
+/**
+ * ----------------------------------------------------
+ * ROTACIÓN DE 3 ENTRENAMIENTOS PRINCIPALES
+ * Pecho -> Espalda -> Pierna -> Pecho
+ * ----------------------------------------------------
+ */
+export const CICLO_3_RUTINAS = [
+  { id: 'pecho', nombre: 'Día de Pecho', color: '#3B82F6' },
+  { id: 'espalda', nombre: 'Día de Espalda', color: '#8B5CF6' },
+  { id: 'pierna', nombre: 'Día de Pierna', color: '#10B981' },
+];
+
+export function getSiguienteRutina(rutinaIdOTexto: string): {
+  id: string;
+  nombre: string;
+  color: string;
+} {
+  const norm = (rutinaIdOTexto || '').toLowerCase();
+  if (norm.includes('pecho')) {
+    return CICLO_3_RUTINAS[1]; // Espalda
+  }
+  if (norm.includes('espalda')) {
+    return CICLO_3_RUTINAS[2]; // Pierna
+  }
+  if (norm.includes('pierna')) {
+    return CICLO_3_RUTINAS[0]; // Pecho
+  }
+  return CICLO_3_RUTINAS[0];
+}
+
+/**
+ * Obtener los ejercicios para una rutina, priorizando los que el usuario ya tiene
+ * guardados en su historial para esa rutina (por ej. si ya guardó su Día de Espalda,
+ * se respetan fielmente sus ejercicios registrados).
+ */
+export function obtenerEjerciciosParaRutina(
+  rutinaId: string,
+  entrenamientos: GymEntrenamiento[]
+): {
+  nombre: string;
+  tipo_carga: 'kg' | 'barras' | 'peso_corporal';
+  series: { peso: number; reps: number; tipo?: 'calentamiento' | 'efectiva' | 'fallo' }[];
+  objetivo?: string;
+}[] {
+  const normRutina = rutinaId.toLowerCase();
+
+  // Buscar última sesión de esta rutina en el historial
+  const sesionPrevia = entrenamientos.find((e) => {
+    const n = e.rutina_nombre.toLowerCase();
+    if (normRutina === 'pecho') return n.includes('pecho');
+    if (normRutina === 'espalda') return n.includes('espalda');
+    if (normRutina === 'pierna') return n.includes('pierna');
+    return n.includes(normRutina);
+  });
+
+  if (sesionPrevia && sesionPrevia.ejercicios && sesionPrevia.ejercicios.length > 0) {
+    return sesionPrevia.ejercicios.map((ej) => {
+      const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
+      // Tomar las series efectivas de la sesión previa con los pesos actualizados
+      const seriesEfectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
+      const seriesBase = seriesEfectivas.length > 0 ? seriesEfectivas : ej.series;
+
+      return {
+        nombre: ej.nombre,
+        tipo_carga: ej.tipo_carga,
+        series: seriesBase.map((s) => ({
+          peso: rec.pesoSugerido > 0 ? rec.pesoSugerido : s.peso,
+          reps: rec.repsSugeridas > 0 ? rec.repsSugeridas : s.reps,
+          tipo: 'efectiva' as const,
+        })),
+        objetivo: rec.recomendacionTexto,
+      };
+    });
+  }
+
+  // Si no hay historial previo para esta rutina, usar la plantilla predeterminada
+  const plantilla =
+    RUTINAS_PREDEFINIDAS.find((r) => r.id === rutinaId) || RUTINAS_PREDEFINIDAS[0];
+
+  return plantilla.ejercicios.map((ej) => {
+    const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
+    const series = [];
+    const numSeries = ej.seriesSugeridas || 4;
+    for (let i = 0; i < numSeries; i++) {
+      series.push({
+        peso: rec.pesoSugerido,
+        reps: rec.repsSugeridas,
+        tipo: 'efectiva' as const,
+      });
+    }
+    return {
+      nombre: ej.nombre,
+      tipo_carga: ej.tipo_carga,
+      series,
+      objetivo: rec.recomendacionTexto,
+    };
+  });
+}
+
+/**
+ * Reproductor de sonido sintético vía Web Audio API.
+ * Emite un agradable doble chime al culminar el temporizador de descanso.
+ */
+export function reproducirChimeFinDescanso(): void {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    // Nota 1 (Re5 / 587.33Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.35);
+
+    // Nota 2 (La5 / 880Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.18);
+    gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.18);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.18);
+    osc2.stop(ctx.currentTime + 0.65);
+  } catch (e) {
+    // Silencio si las políticas de audio del navegador lo bloquean
   }
 }
