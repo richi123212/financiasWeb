@@ -5,7 +5,7 @@ import {
   ShieldAlert,
   Wallet,
   Lock,
-  TrendingUp,
+  CalendarClock,
   AlertTriangle,
   Plus,
   CreditCard,
@@ -155,11 +155,67 @@ export default function App() {
         supabase.from('gastos_futuros').select('*').eq('user_id', userId).order('dia_mes', { ascending: true }),
       ]);
 
-      setTarjetas((tRes.data as Tarjeta[]) || []);
-      setComprasMsi((msiRes.data as CompraMSI[]) || []);
-      setTransacciones((txRes.data as Transaccion[]) || []);
-      setInversiones((invRes.data as Inversion[]) || []);
-      setGastosFijos((gfRes.data as GastoFuturoFijo[]) || []);
+      const mappedTarjetas: Tarjeta[] = (tRes.data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        nombre: row.nombre || row.banco || 'Tarjeta',
+        limite_credito: Number(row.limite_credito || 0),
+        saldo_actual: Number(row.saldo_actual || 0),
+        dia_corte: Number(row.dia_corte || (row.fecha_corte ? parseInt(row.fecha_corte) : 15)),
+        dia_limite_pago: Number(row.dia_limite_pago || (row.fecha_pago ? parseInt(row.fecha_pago) : 5)),
+        color_hex: row.color_hex || row.color || '#6366F1',
+        created_at: row.created_at,
+      }));
+
+      const mappedMsi: CompraMSI[] = (msiRes.data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        tarjeta_id: row.tarjeta_id,
+        concepto: row.concepto || row.descripcion || 'Compra a MSI',
+        monto_total: Number(row.monto_total || row.monto_original || ((row.mensualidad || 0) * (row.plazo_meses || row.meses_totales || 1)) || 0),
+        plazo_meses: Number(row.plazo_meses || row.meses_totales || 1),
+        mensualidades_pagadas: Number(row.mensualidades_pagadas || 0),
+        created_at: row.created_at,
+      }));
+
+      const mappedTx: Transaccion[] = (txRes.data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        concepto: row.concepto || row.descripcion || 'Movimiento',
+        monto: Number(row.monto || 0),
+        tipo: row.tipo as TipoTransaccion,
+        categoria: row.categoria || 'General',
+        metodo_pago: (row.metodo_pago as MetodoPago) || 'efectivo_debito',
+        tarjeta_id: row.tarjeta_id || null,
+        fecha: row.fecha ? row.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
+        created_at: row.created_at,
+      }));
+
+      const mappedInv: Inversion[] = (invRes.data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        institucion: row.institucion || row.nombre || 'Inversión',
+        saldo: Number(row.saldo ?? row.monto ?? 0),
+        rendimiento_anual_estimado: Number(row.rendimiento_anual_estimado ?? row.tasa_anual ?? 0),
+        created_at: row.created_at,
+      }));
+
+      const mappedGf: GastoFuturoFijo[] = (gfRes.data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        concepto: row.concepto || row.descripcion || 'Gasto Futuro',
+        monto: Number(row.monto || 0),
+        dia_mes: Number(row.dia_mes || 1),
+        categoria: row.categoria || 'Servicios',
+        pagado_este_mes: Boolean(row.pagado_este_mes ?? row.completado ?? false),
+        created_at: row.created_at,
+      }));
+
+      setTarjetas(mappedTarjetas);
+      setComprasMsi(mappedMsi);
+      setTransacciones(mappedTx);
+      setInversiones(mappedInv);
+      setGastosFijos(mappedGf);
       setSaldoBaseEfectivo(0);
     } catch (error) {
       console.error('Error fetching Supabase data:', error);
@@ -195,80 +251,67 @@ export default function App() {
     plazoMeses?: number;
     fecha?: string;
   }) => {
-    const currentUserId = user?.id || 'demo-user';
-    const nuevaTx: Transaccion = {
-      id: `tx-${Date.now()}`,
-      user_id: currentUserId,
-      concepto: data.concepto,
-      monto: data.monto,
-      tipo: data.tipo,
-      categoria: data.categoria,
-      metodo_pago: data.metodo_pago,
-      tarjeta_id: data.tarjeta_id || null,
-      fecha: data.fecha || new Date().toISOString().split('T')[0],
-      created_at: new Date().toISOString(),
-    };
+    if (!user) return;
+    try {
+      // 1. Si es compra a MSI
+      if (data.tipo === 'gasto' && data.metodo_pago === 'tarjeta_credito' && data.esMsi && data.tarjeta_id && data.plazoMeses) {
+        const cuota = Number((data.monto / data.plazoMeses).toFixed(2));
+        const { data: msiData, error: msiError } = await supabase.from('compras_msi').insert([{
+          user_id: user.id,
+          tarjeta_id: data.tarjeta_id,
+          concepto: data.concepto,
+          descripcion: data.concepto,
+          monto_total: data.monto,
+          monto_original: data.monto,
+          plazo_meses: data.plazoMeses,
+          meses_totales: data.plazoMeses,
+          mensualidad: cuota,
+          mensualidades_pagadas: 0,
+        }]).select().single();
 
-    // Si es gasto con Tarjeta de Crédito y es MSI
-    if (data.tipo === 'gasto' && data.metodo_pago === 'tarjeta_credito' && data.esMsi && data.tarjeta_id && data.plazoMeses) {
-      const nuevaCompraMsi: CompraMSI = {
-        id: `msi-${Date.now()}`,
-        user_id: currentUserId,
-        tarjeta_id: data.tarjeta_id,
+        if (msiError) throw msiError;
+        if (msiData) setComprasMsi((prev) => [msiData as CompraMSI, ...prev]);
+      }
+
+      // 2. Si es gasto regular con Tarjeta de Crédito (sumar a saldo corriente)
+      if (data.tipo === 'gasto' && data.metodo_pago === 'tarjeta_credito' && data.tarjeta_id && !data.esMsi) {
+        const tarjetaEncontrada = tarjetas.find((t) => t.id === data.tarjeta_id);
+        if (tarjetaEncontrada) {
+          const nuevoSaldo = Number(tarjetaEncontrada.saldo_actual) + data.monto;
+          await supabase.from('tarjetas').update({ saldo_actual: nuevoSaldo }).eq('id', data.tarjeta_id);
+          setTarjetas((prev) => prev.map((t) => t.id === data.tarjeta_id ? { ...t, saldo_actual: nuevoSaldo } : t));
+        }
+      }
+
+      // 3. Si es abono o pago a Tarjeta de Crédito (restar del saldo corriente)
+      if (data.tipo === 'pago_tdc' && data.tarjeta_id) {
+        const tarjetaEncontrada = tarjetas.find((t) => t.id === data.tarjeta_id);
+        if (tarjetaEncontrada) {
+          const nuevoSaldo = Math.max(0, Number(tarjetaEncontrada.saldo_actual) - data.monto);
+          await supabase.from('tarjetas').update({ saldo_actual: nuevoSaldo }).eq('id', data.tarjeta_id);
+          setTarjetas((prev) => prev.map((t) => t.id === data.tarjeta_id ? { ...t, saldo_actual: nuevoSaldo } : t));
+        }
+      }
+
+      // 4. Guardar la transacción en la base de datos
+      const { data: txData, error: txError } = await supabase.from('transacciones').insert([{
+        user_id: user.id,
         concepto: data.concepto,
-        monto_total: data.monto,
-        plazo_meses: data.plazoMeses,
-        mensualidades_pagadas: 0,
-        created_at: new Date().toISOString(),
-      };
+        descripcion: data.concepto,
+        monto: data.monto,
+        tipo: data.tipo,
+        categoria: data.categoria,
+        metodo_pago: data.metodo_pago,
+        tarjeta_id: data.tarjeta_id || null,
+        fecha: data.fecha || new Date().toISOString().split('T')[0],
+      }]).select().single();
 
-      if (!isDemoMode && isSupabaseConfigured) {
-        await supabase.from('compras_msi').insert([nuevaCompraMsi]);
-      }
-      setComprasMsi((prev) => [nuevaCompraMsi, ...prev]);
-    } else if (data.tipo === 'gasto' && data.metodo_pago === 'tarjeta_credito' && data.tarjeta_id) {
-      // Sumar al saldo_actual de la tarjeta seleccionada
-      setTarjetas((prev) =>
-        prev.map((t) =>
-          t.id === data.tarjeta_id ? { ...t, saldo_actual: Number(t.saldo_actual) + data.monto } : t
-        )
-      );
-
-      if (!isDemoMode && isSupabaseConfigured) {
-        const tarjetaEncontrada = tarjetas.find((t) => t.id === data.tarjeta_id);
-        if (tarjetaEncontrada) {
-          await supabase
-            .from('tarjetas')
-            .update({ saldo_actual: Number(tarjetaEncontrada.saldo_actual) + data.monto })
-            .eq('id', data.tarjeta_id);
-        }
-      }
-    } else if (data.tipo === 'pago_tdc' && data.tarjeta_id) {
-      // Reducir el saldo_actual de la tarjeta correspondiente
-      setTarjetas((prev) =>
-        prev.map((t) =>
-          t.id === data.tarjeta_id
-            ? { ...t, saldo_actual: Math.max(0, Number(t.saldo_actual) - data.monto) }
-            : t
-        )
-      );
-
-      if (!isDemoMode && isSupabaseConfigured) {
-        const tarjetaEncontrada = tarjetas.find((t) => t.id === data.tarjeta_id);
-        if (tarjetaEncontrada) {
-          await supabase
-            .from('tarjetas')
-            .update({ saldo_actual: Math.max(0, Number(tarjetaEncontrada.saldo_actual) - data.monto) })
-            .eq('id', data.tarjeta_id);
-        }
-      }
+      if (txError) throw txError;
+      if (txData) setTransacciones((prev) => [txData as Transaccion, ...prev]);
+    } catch (err: any) {
+      console.error('Error registrando transacción:', err);
+      alert('Error al registrar: ' + (err.message || 'Error en la base de datos'));
     }
-
-    // Persistir la transacción
-    if (!isDemoMode && isSupabaseConfigured) {
-      await supabase.from('transacciones').insert([nuevaTx]);
-    }
-    setTransacciones((prev) => [nuevaTx, ...prev]);
   };
 
   const handlePagarTarjeta = (_tarjetaId: string, _nombreTarjeta: string, _montoSugerido: number) => {
@@ -276,135 +319,197 @@ export default function App() {
   };
 
   const handleAvanzarMsi = async (msiId: string) => {
-    setComprasMsi((prev) =>
-      prev.map((c) =>
-        c.id === msiId && c.mensualidades_pagadas < c.plazo_meses
-          ? { ...c, mensualidades_pagadas: c.mensualidades_pagadas + 1 }
-          : c
-      )
-    );
-
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       const c = comprasMsi.find((item) => item.id === msiId);
       if (c && c.mensualidades_pagadas < c.plazo_meses) {
-        await supabase
-          .from('compras_msi')
-          .update({ mensualidades_pagadas: c.mensualidades_pagadas + 1 })
-          .eq('id', msiId);
+        const nuevasPagadas = c.mensualidades_pagadas + 1;
+        await supabase.from('compras_msi').update({ mensualidades_pagadas: nuevasPagadas }).eq('id', msiId);
+        setComprasMsi((prev) =>
+          prev.map((item) => item.id === msiId ? { ...item, mensualidades_pagadas: nuevasPagadas } : item)
+        );
       }
+    } catch (err: any) {
+      console.error('Error avanzando MSI:', err);
     }
   };
 
   const handleEliminarMsi = async (msiId: string) => {
     if (!confirm('¿Deseas eliminar este registro de MSI?')) return;
-    setComprasMsi((prev) => prev.filter((c) => c.id !== msiId));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('compras_msi').delete().eq('id', msiId);
+      setComprasMsi((prev) => prev.filter((c) => c.id !== msiId));
+    } catch (err: any) {
+      console.error('Error eliminando MSI:', err);
     }
   };
 
   const handleAddTarjeta = async (nueva: Omit<Tarjeta, 'id' | 'user_id' | 'created_at'>) => {
-    const currentUserId = user?.id || 'demo-user';
-    const nuevaTarjeta: Tarjeta = {
-      ...nueva,
-      id: `tdc-${Date.now()}`,
-      user_id: currentUserId,
-      created_at: new Date().toISOString(),
-    };
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.from('tarjetas').insert([{
+        user_id: user.id,
+        nombre: nueva.nombre,
+        banco: nueva.nombre,
+        limite_credito: nueva.limite_credito,
+        saldo_actual: nueva.saldo_actual,
+        dia_corte: nueva.dia_corte,
+        dia_limite_pago: nueva.dia_limite_pago,
+        color_hex: nueva.color_hex || '#6366F1',
+        color: nueva.color_hex || '#6366F1',
+      }]).select().single();
 
-    setTarjetas((prev) => [...prev, nuevaTarjeta]);
-    if (!isDemoMode && isSupabaseConfigured) {
-      await supabase.from('tarjetas').insert([nuevaTarjeta]);
+      if (error) throw error;
+      if (data) {
+        const tarjetaMapeada: Tarjeta = {
+          id: data.id,
+          user_id: data.user_id,
+          nombre: data.nombre || data.banco || nueva.nombre,
+          limite_credito: Number(data.limite_credito || nueva.limite_credito),
+          saldo_actual: Number(data.saldo_actual || nueva.saldo_actual),
+          dia_corte: Number(data.dia_corte || nueva.dia_corte),
+          dia_limite_pago: Number(data.dia_limite_pago || nueva.dia_limite_pago),
+          color_hex: data.color_hex || data.color || nueva.color_hex || '#6366F1',
+          created_at: data.created_at,
+        };
+        setTarjetas((prev) => [...prev, tarjetaMapeada]);
+      }
+    } catch (err: any) {
+      console.error('Error al guardar tarjeta en Supabase:', err);
+      alert('Error al guardar tarjeta: ' + (err.message || 'Error en la base de datos'));
     }
   };
 
   const handleUpdateTarjeta = async (id: string, updates: Partial<Tarjeta>) => {
-    setTarjetas((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('tarjetas').update(updates).eq('id', id);
+      setTarjetas((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+    } catch (err: any) {
+      console.error('Error actualizando tarjeta:', err);
     }
   };
 
   const handleDeleteTarjeta = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar esta tarjeta? Se desvincularán sus MSI.')) return;
-    setTarjetas((prev) => prev.filter((t) => t.id !== id));
-    setComprasMsi((prev) => prev.filter((c) => c.tarjeta_id !== id));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('tarjetas').delete().eq('id', id);
+      setTarjetas((prev) => prev.filter((t) => t.id !== id));
+      setComprasMsi((prev) => prev.filter((c) => c.tarjeta_id !== id));
+    } catch (err: any) {
+      console.error('Error eliminando tarjeta:', err);
     }
   };
 
   const handleAddInversion = async (inv: Omit<Inversion, 'id' | 'user_id' | 'created_at'>) => {
-    const currentUserId = user?.id || 'demo-user';
-    const nuevaInv: Inversion = {
-      ...inv,
-      id: `inv-${Date.now()}`,
-      user_id: currentUserId,
-      created_at: new Date().toISOString(),
-    };
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.from('inversiones').insert([{
+        user_id: user.id,
+        institucion: inv.institucion,
+        nombre: inv.institucion,
+        saldo: inv.saldo,
+        monto: inv.saldo,
+        rendimiento_anual_estimado: inv.rendimiento_anual_estimado,
+      }]).select().single();
 
-    setInversiones((prev) => [...prev, nuevaInv]);
-    if (!isDemoMode && isSupabaseConfigured) {
-      await supabase.from('inversiones').insert([nuevaInv]);
+      if (error) throw error;
+      if (data) {
+        const invMapeada: Inversion = {
+          id: data.id,
+          user_id: data.user_id,
+          institucion: data.institucion || data.nombre || inv.institucion,
+          saldo: Number(data.saldo ?? data.monto ?? inv.saldo),
+          rendimiento_anual_estimado: Number(data.rendimiento_anual_estimado ?? inv.rendimiento_anual_estimado),
+          created_at: data.created_at,
+        };
+        setInversiones((prev) => [...prev, invMapeada]);
+      }
+    } catch (err: any) {
+      console.error('Error guardando inversión:', err);
+      alert('Error al guardar inversión: ' + err.message);
     }
   };
 
   const handleUpdateInversion = async (id: string, saldo: number, rendimiento: number) => {
-    setInversiones((prev) =>
-      prev.map((inv) => (inv.id === id ? { ...inv, saldo, rendimiento_anual_estimado: rendimiento } : inv))
-    );
-    if (!isDemoMode && isSupabaseConfigured) {
-      await supabase
-        .from('inversiones')
-        .update({ saldo, rendimiento_anual_estimado: rendimiento })
-        .eq('id', id);
+    try {
+      await supabase.from('inversiones').update({ saldo, rendimiento_anual_estimado: rendimiento }).eq('id', id);
+      setInversiones((prev) =>
+        prev.map((inv) => (inv.id === id ? { ...inv, saldo, rendimiento_anual_estimado: rendimiento } : inv))
+      );
+    } catch (err: any) {
+      console.error('Error actualizando inversión:', err);
     }
   };
 
   const handleDeleteInversion = async (id: string) => {
     if (!confirm('¿Eliminar esta cuenta de inversión?')) return;
-    setInversiones((prev) => prev.filter((i) => i.id !== id));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('inversiones').delete().eq('id', id);
+      setInversiones((prev) => prev.filter((i) => i.id !== id));
+    } catch (err: any) {
+      console.error('Error eliminando inversión:', err);
     }
   };
 
   const handleAddGastoFijo = async (g: Omit<GastoFuturoFijo, 'id' | 'user_id' | 'created_at'>) => {
-    const currentUserId = user?.id || 'demo-user';
-    const nuevoGasto: GastoFuturoFijo = {
-      ...g,
-      id: `gf-${Date.now()}`,
-      user_id: currentUserId,
-      created_at: new Date().toISOString(),
-    };
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.from('gastos_futuros').insert([{
+        user_id: user.id,
+        concepto: g.concepto,
+        descripcion: g.concepto,
+        monto: g.monto,
+        dia_mes: g.dia_mes,
+        categoria: g.categoria,
+        pagado_este_mes: false,
+      }]).select().single();
 
-    setGastosFijos((prev) => [...prev, nuevoGasto]);
-    if (!isDemoMode && isSupabaseConfigured) {
-      await supabase.from('gastos_futuros').insert([nuevoGasto]);
+      if (error) throw error;
+      if (data) {
+        const gfMapeado: GastoFuturoFijo = {
+          id: data.id,
+          user_id: data.user_id,
+          concepto: data.concepto || data.descripcion || g.concepto,
+          monto: Number(data.monto || g.monto),
+          dia_mes: Number(data.dia_mes || g.dia_mes),
+          categoria: data.categoria || g.categoria,
+          pagado_este_mes: false,
+          created_at: data.created_at,
+        };
+        setGastosFijos((prev) => [...prev, gfMapeado]);
+      }
+    } catch (err: any) {
+      console.error('Error guardando gasto futuro:', err);
+      alert('Error al guardar gasto futuro: ' + err.message);
     }
   };
 
   const handleToggleGastoFijoPagado = async (id: string, nuevoEstado: boolean) => {
-    setGastosFijos((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, pagado_este_mes: nuevoEstado } : g))
-    );
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('gastos_futuros').update({ pagado_este_mes: nuevoEstado }).eq('id', id);
+      setGastosFijos((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, pagado_este_mes: nuevoEstado } : g))
+      );
+    } catch (err: any) {
+      console.error('Error toggle gasto futuro:', err);
     }
   };
 
   const handleDeleteGastoFijo = async (id: string) => {
-    setGastosFijos((prev) => prev.filter((g) => g.id !== id));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('gastos_futuros').delete().eq('id', id);
+      setGastosFijos((prev) => prev.filter((g) => g.id !== id));
+    } catch (err: any) {
+      console.error('Error eliminando gasto futuro:', err);
     }
   };
 
   const handleDeleteTransaccion = async (id: string) => {
     if (!confirm('¿Eliminar esta transacción?')) return;
-    setTransacciones((prev) => prev.filter((t) => t.id !== id));
-    if (!isDemoMode && isSupabaseConfigured) {
+    try {
       await supabase.from('transacciones').delete().eq('id', id);
+      setTransacciones((prev) => prev.filter((t) => t.id !== id));
+    } catch (err: any) {
+      console.error('Error eliminando transacción:', err);
     }
   };
 
@@ -490,14 +595,14 @@ export default function App() {
         {/* 2. KPIS DE CABECERA: RESUMEN DE LIQUIDEZ REAL */}
         <section aria-label="Métricas Principales de Liquidez">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* KPI 1: Efectivo / Débito disponible */}
+            {/* KPI 1: Dinero que tienes actualmente */}
             <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
               <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                <span className="font-medium flex items-center gap-1.5">
+                <span className="font-semibold flex items-center gap-1.5 text-emerald-400">
                   <Wallet className="w-4 h-4 text-emerald-400" />
-                  Efectivo / Débito
+                  Dinero Actual
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
                   En Cuenta
                 </span>
               </div>
@@ -505,30 +610,49 @@ export default function App() {
                 {formatCurrency(metricas.saldoEfectivoDebito)}
               </div>
               <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-                Dinero total líquido disponible en tus cuentas
+                Efectivo y saldo en débito disponible
               </p>
             </div>
 
-            {/* KPI 2: Fondo de Blindaje TDC */}
+            {/* KPI 2: Deudas Totales (Tarjetas de Crédito + MSI) */}
             <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-[#161F30] border border-indigo-500/30 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-all">
               <div className="flex items-center justify-between text-indigo-300 text-xs mb-2">
-                <span className="font-semibold flex items-center gap-1.5">
+                <span className="font-semibold flex items-center gap-1.5 text-indigo-300">
                   <Lock className="w-4 h-4 text-indigo-400" />
-                  Fondo Blindaje TDC
+                  Deudas Totales
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Intocable
+                  TDC + MSI
                 </span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-indigo-200 tracking-tight">
                 {formatCurrency(metricas.fondoBlindajeTdc)}
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
-                Saldo al corte ({formatCurrency(metricas.totalDeudaTdc)}) + Cuotas MSI ({formatCurrency(metricas.cuotasMsiMesTotal)})
+                Saldo TDC ({formatCurrency(metricas.totalDeudaTdc)}) + Cuotas MSI ({formatCurrency(metricas.cuotasMsiMesTotal)})
               </p>
             </div>
 
-            {/* KPI 3: Margen Seguro Libre */}
+            {/* KPI 3: Gastos Futuros Totales */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/30 to-[#161F30] border border-amber-500/30 shadow-xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
+              <div className="flex items-center justify-between text-amber-300 text-xs mb-2">
+                <span className="font-semibold flex items-center gap-1.5 text-amber-400">
+                  <CalendarClock className="w-4 h-4 text-amber-400" />
+                  Gastos Futuros Totales
+                </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Por Pagar
+                </span>
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-amber-300 tracking-tight">
+                {formatCurrency(metricas.gastosFuturosPendientes)}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-2">
+                Compromisos y servicios fijos del mes pendientes
+              </p>
+            </div>
+
+            {/* KPI 4: Margen Seguro Libre (Tu Liquidez Real) */}
             <div
               className={`p-5 rounded-2xl shadow-xl relative overflow-hidden border transition-all ${
                 metricas.margenSeguroLibre >= 0
@@ -556,7 +680,7 @@ export default function App() {
                       : 'bg-red-500/20 text-red-300 border border-red-500/30'
                   }`}
                 >
-                  {metricas.margenSeguroLibre >= 0 ? 'Disponible' : 'Déficit'}
+                  {metricas.margenSeguroLibre >= 0 ? 'Libre' : 'Déficit'}
                 </span>
               </div>
               <div
@@ -568,27 +692,8 @@ export default function App() {
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
                 {metricas.margenSeguroLibre >= 0
-                  ? 'Efectivo disponible menos blindaje TDC. Seguro para gastar.'
-                  : '¡Alerta! Tu dinero no alcanza para cubrir el blindaje de tus tarjetas.'}
-              </p>
-            </div>
-
-            {/* KPI 4: Total Invertido & Ganancia Pasiva */}
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                <span className="font-medium flex items-center gap-1.5 text-slate-300">
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
-                  Total Invertido
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                  +{formatCurrency(metricas.rendimientoMensualEstimado)}/mes
-                </span>
-              </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {formatCurrency(metricas.saldoInvertidoTotal)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                Ganancia estimada anual: <strong className="text-emerald-400 font-semibold">+{formatCurrency(metricas.rendimientoAnualEstimadoTotal)}</strong>
+                  ? 'Dinero 100% libre después de cubrir el blindaje de deudas'
+                  : 'Alerta: Déficit para cubrir el pago para no generar intereses'}
               </p>
             </div>
           </div>
