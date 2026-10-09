@@ -18,6 +18,7 @@ import {
   Volume2,
   VolumeX,
   CheckCheck,
+  TrendingUp,
 } from 'lucide-react';
 import type {
   GymEntrenamiento,
@@ -29,6 +30,7 @@ import {
   INITIAL_GYM_WORKOUTS,
   obtenerSugerenciaCalentamiento,
   obtenerEjerciciosParaRutina,
+  calcularRecomendacionSobrecarga,
   reproducirChimeFinDescanso,
 } from '../lib/gymData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -489,7 +491,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       const e = copy.ejercicios[ejIndex];
       e.guardado = true;
       e.omitido = false;
-      e.series = e.series.map((s) => ({ ...s, completada: true }));
+      e.series = e.series.map((s) => ({
+        ...s,
+        peso: typeof s.peso === 'number' ? s.peso : Number(s.peso) || 0,
+        reps: typeof s.reps === 'number' && s.reps > 0 ? s.reps : Number(s.reps) || 10,
+        completada: true,
+      }));
       return copy;
     });
 
@@ -564,14 +571,87 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (!prev) return null;
       const copy = { ...prev };
       const s = copy.ejercicios[ejIndex].series[serieIndex];
-      if (field === 'peso') s.peso = Math.max(0, Number(val) || 0);
-      if (field === 'reps') s.reps = Math.max(1, Number(val) || 0);
+
+      if (field === 'peso') {
+        if (val === '' || val === null || val === undefined) {
+          s.peso = '' as any;
+        } else if (String(val).endsWith('.')) {
+          s.peso = val as any;
+        } else {
+          const num = parseFloat(String(val));
+          s.peso = isNaN(num) ? ('' as any) : num;
+        }
+      }
+
+      if (field === 'reps') {
+        if (val === '' || val === null || val === undefined) {
+          s.reps = '' as any;
+        } else {
+          const num = parseInt(String(val), 10);
+          s.reps = isNaN(num) ? ('' as any) : num;
+        }
+      }
+
       if (field === 'completada') {
         s.completada = Boolean(val);
         if (s.completada) {
           startTimer(sesionEnCurso.descansoPorDefecto || 90);
         }
       }
+
+      return copy;
+    });
+  };
+
+  const handleBlurSerieValor = (
+    ejIndex: number,
+    serieIndex: number,
+    field: 'peso' | 'reps'
+  ) => {
+    if (!sesionEnCurso) return;
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      const copy = { ...prev };
+      const s = copy.ejercicios[ejIndex].series[serieIndex];
+
+      if (field === 'peso') {
+        if (s.peso === ('' as any) || isNaN(Number(s.peso))) {
+          s.peso = 0;
+        } else {
+          s.peso = Math.max(0, Number(s.peso));
+        }
+      }
+
+      if (field === 'reps') {
+        if (s.reps === ('' as any) || isNaN(Number(s.reps)) || Number(s.reps) <= 0) {
+          s.reps = 10;
+        } else {
+          s.reps = Math.max(1, Number(s.reps));
+        }
+      }
+
+      return copy;
+    });
+  };
+
+  const handleAplicarSugerenciaSobrecarga = (
+    ejIndex: number,
+    pesoSugerido: number,
+    repsSugeridas: number
+  ) => {
+    if (!sesionEnCurso) return;
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      const copy = { ...prev };
+      const ej = copy.ejercicios[ejIndex];
+      ej.series = ej.series.map((s) => {
+        if (s.tipo === 'calentamiento') return s;
+        return {
+          ...s,
+          peso: pesoSugerido,
+          reps: repsSugeridas,
+        };
+      });
       return copy;
     });
   };
@@ -643,8 +723,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         nombre: e.nombre.trim(),
         tipo_carga: e.tipo_carga,
         series: e.series.map((s) => ({
-          peso: s.peso,
-          reps: s.reps,
+          peso: typeof s.peso === 'number' ? s.peso : Number(s.peso) || 0,
+          reps: typeof s.reps === 'number' && s.reps > 0 ? s.reps : Number(s.reps) || 10,
           tipo: s.tipo || 'efectiva',
         })),
       })),
@@ -918,21 +998,52 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                         <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
                           Tus ejercicios registrados:
                         </span>
-                        {r.ejerciciosEnHistorial.map((ej, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between text-[11px] text-slate-300"
-                          >
-                            <span className="truncate pr-2 font-medium">• {ej.nombre}</span>
-                            <span className="text-slate-500 text-[10px] font-semibold">
-                              {ej.tipo_carga === 'barras'
-                                ? 'Barras'
-                                : ej.tipo_carga === 'kg'
-                                ? 'Kg'
-                                : 'Corp.'}
-                            </span>
-                          </div>
-                        ))}
+                        {r.ejerciciosEnHistorial.map((ej, idx) => {
+                          const rec = calcularRecomendacionSobrecarga(
+                            ej.nombre,
+                            ej.tipo_carga,
+                            entrenamientos,
+                            ej.series
+                          );
+
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-[11px] text-slate-300 py-1 border-b border-slate-800/40 last:border-b-0 gap-2"
+                            >
+                              <span className="truncate font-medium text-slate-200">
+                                • {ej.nombre}
+                              </span>
+
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                {rec.tieneHistorial && (
+                                  <span className="text-slate-400 text-[10px] font-medium">
+                                    {rec.resumenUltimo}
+                                  </span>
+                                )}
+
+                                {rec.accion === 'subir_peso' ? (
+                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 flex items-center gap-0.5 animate-pulse">
+                                    <Sparkles className="w-2.5 h-2.5 text-amber-300" />
+                                    <span>Sube a {rec.pesoSugerido}{rec.unidad}</span>
+                                  </span>
+                                ) : rec.tieneHistorial ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                    {rec.siguienteMeta}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 text-[10px] font-semibold">
+                                    {ej.tipo_carga === 'barras'
+                                      ? 'Barras'
+                                      : ej.tipo_carga === 'kg'
+                                      ? 'Kg'
+                                      : 'Corp.'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </>
                     ) : (
                       <div className="p-3 rounded-xl bg-slate-900/60 border border-dashed border-slate-800 text-[11px] text-slate-400 leading-relaxed">
@@ -1345,13 +1456,75 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                             )}
                           </div>
 
-                          {/* Marca anterior de referencia */}
-                          {ej.marcaAnterior && (
-                            <p className="text-xs text-indigo-300 font-semibold flex items-center gap-1">
-                              <span>Marca anterior:</span>
-                              <strong className="text-white">{ej.marcaAnterior}</strong>
-                            </p>
-                          )}
+                          {/* Panel de Sobrecarga Progresiva y Sugerencia de Aumento de Peso */}
+                          {(() => {
+                            const rec = calcularRecomendacionSobrecarga(
+                              ej.nombre,
+                              ej.tipo_carga,
+                              entrenamientos,
+                              ej.series
+                            );
+
+                            return (
+                              <div className="pt-1.5 space-y-1.5">
+                                {rec.tieneHistorial ? (
+                                  <div
+                                    className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs ${
+                                      rec.accion === 'subir_peso'
+                                        ? 'bg-gradient-to-r from-emerald-950/60 via-[#132822] to-slate-900 border-emerald-500/60 shadow-md shadow-emerald-500/10'
+                                        : 'bg-slate-800/80 border-slate-700/70'
+                                    }`}
+                                  >
+                                    <div className="space-y-1 flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">
+                                          Última vez: {rec.resumenUltimo}
+                                        </span>
+
+                                        {rec.accion === 'subir_peso' ? (
+                                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 animate-pulse">
+                                            <Sparkles className="w-3 h-3 text-amber-300" />
+                                            <span>¡Sugerencia: Súbele a {rec.pesoSugerido}{rec.unidad}!</span>
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                            Meta: {rec.siguienteMeta}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <p className="text-xs text-slate-200 font-medium leading-relaxed">
+                                        {rec.recomendacionTexto}
+                                      </p>
+                                    </div>
+
+                                    {/* Botón rápido para aplicar el aumento sugerido de peso */}
+                                    {rec.accion === 'subir_peso' && rec.pesoSugerido > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleAplicarSugerenciaSobrecarga(
+                                            ejIdx,
+                                            rec.pesoSugerido,
+                                            rec.repsSugeridas
+                                          )
+                                        }
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-[11px] shadow-md shadow-emerald-600/30 transition-all self-start sm:self-auto cursor-pointer flex-shrink-0"
+                                        title={`Poner ${rec.pesoSugerido}${rec.unidad} en tus series efectivas de hoy`}
+                                      >
+                                        <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>Subir a {rec.pesoSugerido}{rec.unidad}</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : ej.nombre.trim() !== '' ? (
+                                  <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400">
+                                    Primer registro para este ejercicio. Anota tus series hoy y en la siguiente sesión la app te sugerirá exactamente cuándo aumentarle peso o repeticiones.
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Botones de Acción del Ejercicio */}
@@ -1483,46 +1656,51 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                     <>
                                       <button
                                         type="button"
-                                        onClick={() =>
+                                        onClick={() => {
+                                          const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
+                                          const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
                                           handleUpdateSerieValor(
                                             ejIdx,
                                             sIdx,
                                             'peso',
-                                            Math.max(
-                                              0,
-                                              s.peso - (ej.tipo_carga === 'barras' ? 1 : 2.5)
-                                            )
-                                          )
-                                        }
+                                            Math.max(0, p - step)
+                                          );
+                                        }}
                                         className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
                                       >
                                         -
                                       </button>
                                       <input
-                                        type="number"
-                                        step={ej.tipo_carga === 'barras' ? '1' : '0.5'}
-                                        min="0"
-                                        value={s.peso}
-                                        onChange={(e) =>
-                                          handleUpdateSerieValor(
-                                            ejIdx,
-                                            sIdx,
-                                            'peso',
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={s.peso === ('' as any) ? '' : s.peso}
+                                        onFocus={(e) => e.target.select()}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(',', '.');
+                                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                            handleUpdateSerieValor(
+                                              ejIdx,
+                                              sIdx,
+                                              'peso',
+                                              val
+                                            );
+                                          }
+                                        }}
+                                        onBlur={() => handleBlurSerieValor(ejIdx, sIdx, 'peso')}
+                                        className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                       />
                                       <button
                                         type="button"
-                                        onClick={() =>
+                                        onClick={() => {
+                                          const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
+                                          const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
                                           handleUpdateSerieValor(
                                             ejIdx,
                                             sIdx,
                                             'peso',
-                                            s.peso + (ej.tipo_carga === 'barras' ? 1 : 2.5)
-                                          )
-                                        }
+                                            p + step
+                                          );
+                                        }}
                                         className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
                                       >
                                         +
@@ -1539,42 +1717,50 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                 <div className="col-span-3 sm:col-span-4 flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      const r = typeof s.reps === 'number' ? s.reps : parseInt(String(s.reps), 10) || 10;
                                       handleUpdateSerieValor(
                                         ejIdx,
                                         sIdx,
                                         'reps',
-                                        Math.max(1, s.reps - 1)
-                                      )
-                                    }
+                                        Math.max(1, r - 1)
+                                      );
+                                    }}
                                     className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
                                   >
                                     -
                                   </button>
                                   <input
-                                    type="number"
-                                    min="1"
-                                    value={s.reps}
-                                    onChange={(e) =>
-                                      handleUpdateSerieValor(
-                                        ejIdx,
-                                        sIdx,
-                                        'reps',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={s.reps === ('' as any) ? '' : s.reps}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === '' || /^\d+$/.test(val)) {
+                                        handleUpdateSerieValor(
+                                          ejIdx,
+                                          sIdx,
+                                          'reps',
+                                          val
+                                        );
+                                      }
+                                    }}
+                                    onBlur={() => handleBlurSerieValor(ejIdx, sIdx, 'reps')}
+                                    className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                   />
                                   <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      const r = typeof s.reps === 'number' ? s.reps : parseInt(String(s.reps), 10) || 0;
                                       handleUpdateSerieValor(
                                         ejIdx,
                                         sIdx,
                                         'reps',
-                                        s.reps + 1
-                                      )
-                                    }
+                                        r + 1
+                                      );
+                                    }}
                                     className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
                                   >
                                     +

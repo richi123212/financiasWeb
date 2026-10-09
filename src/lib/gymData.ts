@@ -135,35 +135,84 @@ export interface RecomendacionSobrecarga {
 export function calcularRecomendacionSobrecarga(
   nombreEjercicio: string,
   tipoCarga: 'kg' | 'barras' | 'peso_corporal',
-  entrenamientos: GymEntrenamiento[]
+  entrenamientos: GymEntrenamiento[],
+  seriesActuales?: { peso: number; reps: number; tipo?: string; completada?: boolean }[]
 ): RecomendacionSobrecarga {
   const unidad = tipoCarga === 'barras' ? 'barras' : tipoCarga === 'kg' ? 'kg' : 'reps';
 
-  // Buscar última sesión donde se realizó este ejercicio
+  const normalizar = (str: string) =>
+    (str || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const normTarget = normalizar(nombreEjercicio);
+
+  // 1. Buscar en historial de entrenamientos previos guardados
   let ultimaSerie: { peso: number; reps: number } | null = null;
 
   for (const ent of entrenamientos) {
     const ej = ent.ejercicios.find(
-      (e) => e.nombre.trim().toLowerCase() === nombreEjercicio.trim().toLowerCase()
+      (e) => normalizar(e.nombre) === normTarget
     );
     if (ej && ej.series && ej.series.length > 0) {
       // Filtrar sólo series efectivas si existen, para no considerar el calentamiento como serie máxima
-      const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
+      const efectivas = ej.series.filter(
+        (s) => s.tipo !== 'calentamiento' && (Number(s.reps) > 0 || Number(s.peso) > 0)
+      );
       const pool = efectivas.length > 0 ? efectivas : ej.series;
-      let mejor = pool[0];
-      for (const s of pool) {
-        if (s.peso > mejor.peso) {
-          mejor = s;
-        } else if (s.peso === mejor.peso && s.reps > mejor.reps) {
-          mejor = s;
+      if (pool.length > 0) {
+        let mejor = pool[0];
+        for (const s of pool) {
+          const sPeso = Number(s.peso) || 0;
+          const sReps = Number(s.reps) || 0;
+          const mPeso = Number(mejor.peso) || 0;
+          const mReps = Number(mejor.reps) || 0;
+          if (sPeso > mPeso) {
+            mejor = s;
+          } else if (sPeso === mPeso && sReps > mReps) {
+            mejor = s;
+          }
+        }
+        const p = Number(mejor.peso) || 0;
+        const r = Number(mejor.reps) || 0;
+        if (r > 0 || p > 0) {
+          ultimaSerie = { peso: p, reps: r };
+          break;
         }
       }
-      ultimaSerie = { peso: mejor.peso, reps: mejor.reps };
-      break;
     }
   }
 
-  // Si no hay historial previo:
+  // 2. Si no hay registros en entrenamientos previos, pero se pasaron series actuales
+  if (!ultimaSerie && seriesActuales && seriesActuales.length > 0) {
+    const efectivas = seriesActuales.filter(
+      (s) => s.tipo !== 'calentamiento' && (Number(s.reps) > 0 || Number(s.peso) > 0)
+    );
+    const pool = efectivas.length > 0 ? efectivas : seriesActuales;
+    if (pool.length > 0) {
+      let mejor = pool[0];
+      for (const s of pool) {
+        const sPeso = Number(s.peso) || 0;
+        const sReps = Number(s.reps) || 0;
+        const mPeso = Number(mejor.peso) || 0;
+        const mReps = Number(mejor.reps) || 0;
+        if (sPeso > mPeso) {
+          mejor = s;
+        } else if (sPeso === mPeso && sReps > mReps) {
+          mejor = s;
+        }
+      }
+      const p = Number(mejor.peso) || 0;
+      const r = Number(mejor.reps) || 0;
+      if (r > 0 || p > 0) {
+        ultimaSerie = { peso: p, reps: r };
+      }
+    }
+  }
+
+  // 3. Si no hay historial previo ni marcas actuales válidas:
   if (!ultimaSerie) {
     return {
       tieneHistorial: false,
@@ -172,7 +221,7 @@ export function calcularRecomendacionSobrecarga(
       unidad,
       resumenUltimo: 'Sin registro previo',
       accion: 'establecer_base',
-      recomendacionTexto: 'Anota tu primera sesión. Busca un peso con el que logres entre 8 y 10 repeticiones limpias.',
+      recomendacionTexto: 'Anota tus series hoy. En cuanto registres repeticiones la app te sugerirá exactamente cuándo aumentarle peso o repeticiones.',
       siguienteMeta: 'Establecer peso base (8-10 reps)',
       pesoSugerido: tipoCarga === 'peso_corporal' ? 0 : tipoCarga === 'barras' ? 4 : 10,
       repsSugeridas: 10,
@@ -218,7 +267,7 @@ export function calcularRecomendacionSobrecarga(
         unidad,
         resumenUltimo: `${reps} reps`,
         accion: 'consolidar',
-        recomendacionTexto: `Hiciste ${reps} reps corporales. ¡Excelente volumen! Busca 13-15 reps o haz una pausa de 2 segundos abajo.`,
+        recomendacionTexto: `Hiciste ${reps} reps corporales. ¡Excelente volumen! Busca 13-15 reps o haz una pausa isométrica de 2 segundos.`,
         siguienteMeta: '13-15 reps o pausa isométrica',
         pesoSugerido: 0,
         repsSugeridas: reps + 1,
@@ -241,8 +290,7 @@ export function calcularRecomendacionSobrecarga(
         pesoSugerido: peso,
         repsSugeridas: 8,
       };
-    } else if (reps < 12) {
-      const meta = reps >= 10 ? 12 : 10;
+    } else if (reps < 10) {
       return {
         tieneHistorial: true,
         ultimoPeso: peso,
@@ -250,13 +298,13 @@ export function calcularRecomendacionSobrecarga(
         unidad,
         resumenUltimo: `${peso} barras × ${reps} reps`,
         accion: 'subir_reps',
-        recomendacionTexto: `Hiciste ${reps} reps con ${peso} barras. Ahora intenta sacar ${meta} reps limpias con las mismas ${peso} barras.`,
-        siguienteMeta: `${meta} reps con ${peso} barras`,
+        recomendacionTexto: `Hiciste ${reps} reps con ${peso} barras. Ahora intenta sacar 10 reps con las mismas ${peso} barras antes de subir.`,
+        siguienteMeta: `10 reps con ${peso} barras`,
         pesoSugerido: peso,
-        repsSugeridas: meta,
+        repsSugeridas: 10,
       };
     } else {
-      // Ya dominó las 12 reps con ese número de barras -> Subir 1 barra
+      // 10 o más reps con barras -> Sugerencia de aumentar barra
       const nuevasBarras = peso + 1;
       return {
         tieneHistorial: true,
@@ -274,7 +322,6 @@ export function calcularRecomendacionSobrecarga(
   }
 
   // CASO 3: KG (Mancuernas y Barras libres)
-  // Ej: 5kg x 6 reps -> "Hiciste 6 reps con 5kg. Ahora haz 8 reps con 5kg antes de subir peso."
   if (reps < 8) {
     return {
       tieneHistorial: true,
@@ -288,8 +335,7 @@ export function calcularRecomendacionSobrecarga(
       pesoSugerido: peso,
       repsSugeridas: 8,
     };
-  } else if (reps < 12) {
-    const meta = reps >= 10 ? 12 : 10;
+  } else if (reps < 10) {
     return {
       tieneHistorial: true,
       ultimoPeso: peso,
@@ -297,13 +343,13 @@ export function calcularRecomendacionSobrecarga(
       unidad,
       resumenUltimo: `${peso}kg × ${reps} reps`,
       accion: 'subir_reps',
-      recomendacionTexto: `Hiciste ${reps} reps con ${peso}kg. Ahora intenta llegar a ${meta} reps con los mismos ${peso}kg antes de subir peso.`,
-      siguienteMeta: `${meta} reps con ${peso}kg`,
+      recomendacionTexto: `Hiciste ${reps} reps con ${peso}kg. Ahora intenta llegar a 10 reps con los mismos ${peso}kg antes de subir peso.`,
+      siguienteMeta: `10 reps con ${peso}kg`,
       pesoSugerido: peso,
-      repsSugeridas: meta,
+      repsSugeridas: 10,
     };
   } else {
-    // Ya sacó 12 o más reps -> Toca subir peso
+    // 10 o más reps -> Sugerencia de aumentar peso
     const incremento = peso <= 8 ? (peso === 7 ? 1 : 2) : 2.5;
     const nuevoPeso = peso + incremento;
     return {
@@ -436,6 +482,8 @@ export function obtenerEjerciciosParaRutina(
   series: { peso: number; reps: number; tipo?: 'calentamiento' | 'efectiva' | 'fallo' }[];
   marcaAnterior?: string;
   objetivo?: string;
+  pesoSugerido?: number;
+  repsSugeridas?: number;
 }[] {
   const normRutina = rutinaId.toLowerCase();
 
@@ -454,26 +502,26 @@ export function obtenerEjerciciosParaRutina(
       const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
       const seriesBase = efectivas.length > 0 ? efectivas : ej.series;
 
-      // Calcular la marca anterior como referencia rápida
-      const serieMax = seriesBase.reduce(
-        (max, s) => (s.peso > max.peso ? s : s.peso === max.peso && s.reps > max.reps ? s : max),
-        seriesBase[0] || { peso: 0, reps: 0 }
+      // Calcular recomendación de sobrecarga progresiva
+      const rec = calcularRecomendacionSobrecarga(
+        ej.nombre,
+        ej.tipo_carga,
+        entrenamientos,
+        seriesBase
       );
-      const unidad = ej.tipo_carga === 'barras' ? 'barras' : ej.tipo_carga === 'kg' ? 'kg' : 'reps';
-      const marcaAnterior =
-        ej.tipo_carga === 'peso_corporal'
-          ? `${serieMax.reps} reps`
-          : `${serieMax.peso}${unidad} × ${serieMax.reps} reps`;
 
       return {
         nombre: ej.nombre,
         tipo_carga: ej.tipo_carga,
         series: seriesBase.map((s) => ({
-          peso: s.peso,
-          reps: s.reps,
+          peso: rec.accion === 'subir_peso' && rec.pesoSugerido > 0 ? rec.pesoSugerido : s.peso,
+          reps: rec.accion === 'subir_peso' && rec.repsSugeridas > 0 ? rec.repsSugeridas : s.reps,
           tipo: 'efectiva' as const,
         })),
-        marcaAnterior,
+        marcaAnterior: rec.resumenUltimo,
+        objetivo: rec.recomendacionTexto,
+        pesoSugerido: rec.pesoSugerido,
+        repsSugeridas: rec.repsSugeridas,
       };
     });
   }
