@@ -111,3 +111,47 @@ export interface UserProfile {
   email: string;
   nombre?: string;
 }
+
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE GYM & SOBRECARGA PROGRESIVA
+// ----------------------------------------------------
+export type TipoCarga = 'kg' | 'barras' | 'peso_corporal';
+export type TipoSerie = 'calentamiento' | 'efectiva' | 'fallo';
+
+export interface SerieEjercicio {
+  peso: number; // kg o número de barras (placas) o 0 para peso corporal
+  reps: number;
+  tipo?: TipoSerie;
+}
+
+export interface EjercicioEntrenamiento {
+  nombre: string;
+  tipo_carga: TipoCarga;
+  series: SerieEjercicio[];
+  objetivo?: string;
+  notas?: string;
+}
+
+export interface GymEntrenamiento {
+  id: string;
+  user_id: string;
+  rutina_nombre: string;
+  fecha: string; // YYYY-MM-DD
+  notas?: string;
+  ejercicios: EjercicioEntrenamiento[];
+  created_at?: string;
+}
+
+export interface PlantillaRutina {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  color: string;
+  ejercicios: {
+    nombre: string;
+    tipo_carga: TipoCarga;
+    seriesSugeridas: number;
+    repsSugeridas: string;
+    objetivo: string;
+  }[];
+}

@@ -50,6 +50,8 @@ import { FixedExpensesWidget } from './components/FixedExpensesWidget';
 import { CardsManagementModal } from './components/CardsManagementModal';
 import { TransactionHistory } from './components/TransactionHistory';
 import { Login } from './components/Login';
+import { ModuleHub } from './components/ModuleHub';
+import { GymTracker } from './components/GymTracker';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
 
@@ -57,6 +59,7 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym'>('hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -646,25 +649,42 @@ export default function App() {
     );
   }
 
+  // Si está en el Hub de Módulos (selector de bienvenida al iniciar sesión)
+  if (currentModule === 'hub') {
+    return (
+      <ModuleHub
+        user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }}
+        onSelectModule={(modulo) => setCurrentModule(modulo)}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30">
       {/* 1. Navbar Superior */}
       <Navbar
-        user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Usuario' }}
+        user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }}
         metricas={metricas}
         onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
+        moduloActivo={currentModule === 'gym' ? 'gym' : 'finanzas'}
+        onCambiarModulo={(mod) => setCurrentModule(mod)}
       />
 
       {/* Contenido Principal con Contenedor Central */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}
-        {metricas.estadoSemaforo === 'peligro' && (
-          <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/50 text-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-red-900/20 animate-in fade-in duration-300">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 animate-bounce" />
+        {currentModule === 'gym' ? (
+          <GymTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : (
+          <>
+            {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}
+            {metricas.estadoSemaforo === 'peligro' && (
+              <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/50 text-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-red-900/20 animate-in fade-in duration-300">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 animate-bounce" />
               <div className="text-xs sm:text-sm">
                 <strong className="font-bold text-red-100 block sm:inline">
                   ¡Atención a tu Liquidez!
@@ -1276,21 +1296,25 @@ export default function App() {
             />
           </div>
         )}
+          </>
+        )}
       </main>
 
-      {/* BOTÓN FLOTANTE INFERIOR (+) PARA REGISTRO EN 5 SEGUNDOS (Mobile First & Quick Action) */}
-      <div className="fixed bottom-5 right-5 z-40 sm:bottom-6 sm:right-6">
-        <button
-          onClick={() => {
-            setIsTxModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
-          title="Registrar nuevo movimiento en 5 segundos"
-        >
-          <Plus className="w-5 h-5 text-white stroke-[2.5]" />
-          <span className="hidden sm:inline">Nuevo Movimiento</span>
-        </button>
-      </div>
+      {/* BOTÓN FLOTANTE INFERIOR (+) PARA REGISTRO EN 5 SEGUNDOS (Solo en módulo de Finanzas) */}
+      {currentModule === 'finanzas' && (
+        <div className="fixed bottom-5 right-5 z-40 sm:bottom-6 sm:right-6">
+          <button
+            onClick={() => {
+              setIsTxModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+            title="Registrar nuevo movimiento en 5 segundos"
+          >
+            <Plus className="w-5 h-5 text-white stroke-[2.5]" />
+            <span className="hidden sm:inline">Nuevo Movimiento</span>
+          </button>
+        </div>
+      )}
 
       {/* MODAL DE NUEVA TRANSACCIÓN / COMPRA MSI / PAGO / DEUDA */}
       <NewTransactionModal
