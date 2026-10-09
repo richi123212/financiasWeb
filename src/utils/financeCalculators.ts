@@ -128,26 +128,13 @@ export function calcularResumenTarjeta(
 export function calcularMetricasGlobales(
   tarjetas: Tarjeta[],
   comprasMsi: CompraMSI[],
-  transacciones: Transaccion[],
+  _transacciones: Transaccion[],
   inversiones: Inversion[],
   gastosFijos: GastoFuturoFijo[],
   saldoInicialEfectivo: number = 0
 ): MetricasFinancieras {
-  // 1. Calcular Saldo de Efectivo / Débito disponible a partir de movimientos
-  let balanceEfectivo = saldoInicialEfectivo;
-
-  transacciones.forEach((tx) => {
-    const monto = Number(tx.monto) || 0;
-    if (tx.tipo === 'ingreso') {
-      balanceEfectivo += monto;
-    } else if (tx.tipo === 'gasto' && tx.metodo_pago === 'efectivo_debito') {
-      balanceEfectivo -= monto;
-    } else if (tx.tipo === 'pago_tdc' && tx.metodo_pago === 'efectivo_debito') {
-      balanceEfectivo -= monto;
-    } else if (tx.tipo === 'inversion' && tx.metodo_pago === 'efectivo_debito') {
-      balanceEfectivo -= monto;
-    }
-  });
+  // 1. Dinero Actual Digital declarado por el usuario (FIJO en cuenta bancaria hoy, no se descuenta)
+  const balanceEfectivo = Number((Number(saldoInicialEfectivo) || 0).toFixed(2));
 
   // 2. Calcular cuotas MSI acumuladas para el mes
   const msiActivas = comprasMsi.filter((c) => c.mensualidades_pagadas < c.plazo_meses);
@@ -312,4 +299,30 @@ export function formatCurrency(amount: number): string {
  */
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
+}
+
+/**
+ * Parsea y sanitiza de forma ultra robusta montos financieros:
+ * Permite tanto punto '.' como coma ',' como separador de decimales,
+ * elimina caracteres no numéricos y redondea a 2 decimales exactos.
+ */
+export function parseMonto(val: string | number | undefined | null): number {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') {
+    return isNaN(val) ? 0 : Number(val.toFixed(2));
+  }
+  const str = val.toString().trim();
+  if (!str) return 0;
+
+  // Reemplazar comas por puntos y eliminar caracteres que no sean dígitos o punto
+  const cleaned = str.replace(/[^\d.,-]/g, '').replace(/,/g, '.');
+  const parts = cleaned.split('.');
+  let normalized = parts[0];
+  if (parts.length > 1) {
+    normalized += '.' + parts.slice(1).join('');
+  }
+
+  const parsed = parseFloat(normalized);
+  if (isNaN(parsed)) return 0;
+  return Number(parsed.toFixed(2));
 }

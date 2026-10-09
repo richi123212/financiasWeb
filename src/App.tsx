@@ -12,6 +12,7 @@ import {
   Coins,
   Calculator,
   Sparkles,
+  Sliders,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type {
@@ -30,6 +31,7 @@ import {
   calcularInfoQuincena,
   formatCurrency,
   formatPercent,
+  parseMonto,
 } from './utils/financeCalculators';
 import {
   INITIAL_TARJETAS,
@@ -42,7 +44,7 @@ import {
 import { Navbar } from './components/Navbar';
 import { CardCreditStatus } from './components/CardCreditStatus';
 import { MsiTracker } from './components/MsiTracker';
-import { NewTransactionModal } from './components/NewTransactionModal';
+import { NewTransactionModal, type TipoOperacionModal } from './components/NewTransactionModal';
 import { InvestmentsWidget } from './components/InvestmentsWidget';
 import { FixedExpensesWidget } from './components/FixedExpensesWidget';
 import { CardsManagementModal } from './components/CardsManagementModal';
@@ -62,7 +64,7 @@ export default function App() {
   const [transacciones, setTransacciones] = useState<Transaccion[]>(INITIAL_TRANSACCIONES);
   const [inversiones, setInversiones] = useState<Inversion[]>(INITIAL_INVERSIONES);
   const [gastosFijos, setGastosFijos] = useState<GastoFuturoFijo[]>(INITIAL_GASTOS_FIJOS);
-  const [saldoBaseEfectivo, setSaldoBaseEfectivo] = useState<number>(32500);
+  const [saldoBaseEfectivo, setSaldoBaseEfectivo] = useState<number>(194.14);
 
   // Navegación y Modales
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones'>('dashboard');
@@ -70,9 +72,10 @@ export default function App() {
   const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [txModalPreset, setTxModalPreset] = useState<{
-    tipo?: TipoTransaccion;
+    tipo?: TipoOperacionModal;
     tarjetaId?: string;
     monto?: number;
+    modoAjuste?: boolean;
   }>({});
 
   // 1. Cargar persistencia inicial (Supabase Auth y LocalStorage para Demo)
@@ -227,7 +230,28 @@ export default function App() {
       setTransacciones(mappedTx);
       setInversiones(mappedInv);
       setGastosFijos(mappedGf);
-      setSaldoBaseEfectivo(0);
+
+      // Cargar Dinero Actual Digital fijo (persistencia de 3 niveles)
+      let saldoCargado = 194.14;
+      try {
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser?.user?.user_metadata?.dinero_actual_digital !== undefined) {
+          saldoCargado = Number(authUser.user.user_metadata.dinero_actual_digital);
+        } else {
+          const saldoTx = mappedTx.find(
+            (t) => t.concepto.toLowerCase().includes('dinero') || t.concepto === 'SALDO_DIGITAL_ACTUAL'
+          );
+          if (saldoTx) {
+            saldoCargado = Number(saldoTx.monto);
+          } else {
+            const localSaved = localStorage.getItem(`finanzas_dinero_actual_${userId}`);
+            if (localSaved) saldoCargado = parseFloat(localSaved) || 194.14;
+          }
+        }
+      } catch (err) {
+        console.error('Error recuperando saldo digital:', err);
+      }
+      setSaldoBaseEfectivo(saldoCargado);
     } catch (error) {
       console.error('Error fetching Supabase data:', error);
     }
@@ -333,6 +357,50 @@ export default function App() {
     } catch (err: any) {
       console.error('Error registrando transacción:', err);
       alert('Error al registrar: ' + (err.message || 'Error en la base de datos'));
+    }
+  };
+
+  const handleActualizarDineroDigital = async (nuevoMonto: number) => {
+    const montoSanitizado = parseMonto(nuevoMonto);
+    setSaldoBaseEfectivo(montoSanitizado);
+    if (user && !isDemoMode && isSupabaseConfigured) {
+      try {
+        localStorage.setItem(`finanzas_dinero_actual_${user.id}`, montoSanitizado.toString());
+        await supabase.auth.updateUser({ data: { dinero_actual_digital: montoSanitizado } });
+
+        const saldoTx = transacciones.find(
+          (t) => t.concepto.toLowerCase().includes('dinero') || t.concepto === 'SALDO_DIGITAL_ACTUAL'
+        );
+        if (saldoTx) {
+          await supabase.from('transacciones').update({
+            monto: montoSanitizado,
+            concepto: 'Dinero disponible en cuenta',
+            descripcion: 'Dinero disponible en cuenta',
+            metodo_pago: 'efectivo_debito',
+            tarjeta_id: null,
+          }).eq('id', saldoTx.id);
+          setTransacciones((prev) =>
+            prev.map((t) => (t.id === saldoTx.id ? { ...t, monto: montoSanitizado } : t))
+          );
+        } else {
+          const { data: nuevaTx } = await supabase.from('transacciones').insert([{
+            user_id: user.id,
+            concepto: 'Dinero disponible en cuenta',
+            descripcion: 'Dinero disponible en cuenta',
+            monto: montoSanitizado,
+            tipo: 'ingreso',
+            categoria: 'Dinero en Cuenta',
+            metodo_pago: 'efectivo_debito',
+            tarjeta_id: null,
+            fecha: new Date().toISOString().split('T')[0],
+          }]).select().single();
+          if (nuevaTx) {
+            setTransacciones((prev) => [nuevaTx as Transaccion, ...prev]);
+          }
+        }
+      } catch (err) {
+        console.error('Error guardando saldo digital:', err);
+      }
     }
   };
 
@@ -645,23 +713,38 @@ export default function App() {
                     <Wallet className="w-4 h-4 text-emerald-400" />
                     Dinero Actual Digital
                   </span>
-                  <button
-                    onClick={() => {
-                      setTxModalPreset({ tipo: 'ingreso' });
-                      setIsTxModalOpen(true);
-                    }}
-                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
-                    title="Registrar dinero disponible en tu cuenta o sueldo"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Añadir Saldo</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        setTxModalPreset({ tipo: 'ingreso', modoAjuste: true, monto: saldoBaseEfectivo });
+                        setIsTxModalOpen(true);
+                      }}
+                      className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                      title="Fijar tu dinero exacto en cuenta bancaria hoy"
+                    >
+                      <Sliders className="w-3 h-3" />
+                      <span>Fijar Saldo</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsTxModalOpen(true);
+                      }}
+                      className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                      title="Registrar nuevo movimiento o deuda"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Movimiento</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  {formatCurrency(metricas.saldoEfectivoDebito)}
+                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-baseline gap-2">
+                  <span>{formatCurrency(metricas.saldoEfectivoDebito)}</span>
+                  <span className="text-[10px] font-bold text-emerald-300 uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                    Fijo
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Tu dinero líquido real en cuenta hoy
+                  Tu saldo bancario declarado hoy (fijo, no se descuenta)
                 </p>
               </div>
 
@@ -1209,7 +1292,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* MODAL DE NUEVA TRANSACCIÓN / COMPRA MSI / PAGO */}
+      {/* MODAL DE NUEVA TRANSACCIÓN / COMPRA MSI / PAGO / DEUDA */}
       <NewTransactionModal
         isOpen={isTxModalOpen}
         onClose={() => {
@@ -1220,7 +1303,11 @@ export default function App() {
         initialTipo={txModalPreset.tipo}
         initialTarjetaId={txModalPreset.tarjetaId}
         initialMonto={txModalPreset.monto}
+        initialModoAjuste={txModalPreset.modoAjuste}
+        saldoActualDigital={saldoBaseEfectivo}
         onSubmitTransaction={handleRegistrarTransaccion}
+        onAddGastoFijo={handleAddGastoFijo}
+        onAjustarSaldoDigital={handleActualizarDineroDigital}
       />
 
       {/* MODAL DE ADMINISTRACIÓN DE TARJETAS */}

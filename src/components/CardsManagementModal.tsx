@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Plus, X, Trash2, Edit2 } from 'lucide-react';
 import type { Tarjeta } from '../types';
-import { formatCurrency } from '../utils/financeCalculators';
+import { formatCurrency, parseMonto } from '../utils/financeCalculators';
 
 interface CardsManagementModalProps {
   isOpen: boolean;
@@ -90,12 +90,12 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
     e.preventDefault();
     if (!nombre.trim() || !limiteCredito) return;
 
-    const limite = parseFloat(limiteCredito);
-    const saldo = parseFloat(saldoActual) || 0;
+    const limite = parseMonto(limiteCredito);
+    const saldo = parseMonto(saldoActual);
     const corte = parseInt(diaCorte, 10);
     const pago = parseInt(diaLimitePago, 10);
 
-    if (isNaN(limite) || limite <= 0) return;
+    if (limite <= 0) return;
     if (isNaN(corte) || corte < 1 || corte > 31) return;
     if (isNaN(pago) || pago < 1 || pago > 31) return;
 
@@ -197,14 +197,16 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">Límite de Crédito ($ MXN) *</label>
                   <input
-                    type="number"
-                    step="100"
-                    min="1"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="30000"
                     required
                     value={limiteCredito}
-                    onChange={(e) => setLimiteCredito(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^[\d.,]*$/.test(val)) setLimiteCredito(val);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-bold"
                   />
                 </div>
 
@@ -216,13 +218,15 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
                     Lo que llevas gastado en esta tarjeta o debes al corte (ej. 1392)
                   </p>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0.00"
                     value={saldoActual}
-                    onChange={(e) => setSaldoActual(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-semibold"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^[\d.,]*$/.test(val)) setSaldoActual(val);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-bold text-amber-300"
                   />
                 </div>
 

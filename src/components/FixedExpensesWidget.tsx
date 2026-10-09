@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarClock, Plus, CheckCircle2, Clock, Trash2, X, Check } from 'lucide-react';
 import type { GastoFuturoFijo } from '../types';
-import { formatCurrency, calcularDiasHastaDia } from '../utils/financeCalculators';
+import { formatCurrency, calcularDiasHastaDia, parseMonto } from '../utils/financeCalculators';
 
 interface FixedExpensesWidgetProps {
   gastosFijos: GastoFuturoFijo[];
@@ -34,12 +34,13 @@ export const FixedExpensesWidget: React.FC<FixedExpensesWidgetProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!concepto.trim() || !monto || parseFloat(monto) <= 0) return;
+    const parsed = parseMonto(monto);
+    if (!concepto.trim() || parsed <= 0) return;
 
     await onAddGastoFijo({
       concepto: concepto.trim(),
-      monto: parseFloat(monto),
-      dia_mes: parseInt(diaMes, 10) || 1,
+      monto: parsed,
+      dia_mes: parseInt(diaMes, 10) || 15,
       categoria,
       pagado_este_mes: false,
     });
@@ -131,14 +132,16 @@ export const FixedExpensesWidget: React.FC<FixedExpensesWidgetProps> = ({
             <div>
               <label className="block text-[11px] text-slate-400 mb-1">Monto ($ MXN) *</label>
               <input
-                type="number"
-                step="0.01"
-                min="0.01"
+                type="text"
+                inputMode="decimal"
                 placeholder="0.00"
                 required
                 value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-amber-500"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^[\d.,]*$/.test(val)) setMonto(val);
+                }}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-amber-500 font-bold"
               />
             </div>
             <div>
@@ -161,7 +164,8 @@ export const FixedExpensesWidget: React.FC<FixedExpensesWidgetProps> = ({
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-amber-500"
             >
-              <option value="Servicios">Servicios (Luz, Agua, Gas, Internet)</option>
+              <option value="Deudas">Deudas & Préstamos Personales (Flow Fest, tandas, etc.)</option>
+              <option value="Servicios">Servicios (Luz, Agua, Gas, Internet, Streaming)</option>
               <option value="Vivienda">Vivienda (Renta, Mantenimiento)</option>
               <option value="Salud">Salud & Gimnasio</option>
               <option value="Educación">Educación & Cursos</option>

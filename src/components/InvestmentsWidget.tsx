@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TrendingUp, Plus, ShieldCheck, Trash2, Edit2, X, Check } from 'lucide-react';
 import type { Inversion } from '../types';
-import { formatCurrency, formatPercent } from '../utils/financeCalculators';
+import { formatCurrency, formatPercent, parseMonto } from '../utils/financeCalculators';
 
 interface InvestmentsWidgetProps {
   inversiones: Inversion[];
@@ -34,12 +34,14 @@ export const InvestmentsWidget: React.FC<InvestmentsWidgetProps> = ({
 
   const handleSubmitNew = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!institucion.trim() || !saldo || parseFloat(saldo) < 0) return;
+    const s = parseMonto(saldo);
+    const r = parseMonto(rendimientoAnual);
+    if (!institucion.trim() || s <= 0) return;
 
     await onAddInversion({
       institucion: institucion.trim(),
-      saldo: parseFloat(saldo),
-      rendimiento_anual_estimado: parseFloat(rendimientoAnual) || 0,
+      saldo: s,
+      rendimiento_anual_estimado: r,
     });
 
     setInstitucion('');
@@ -56,10 +58,10 @@ export const InvestmentsWidget: React.FC<InvestmentsWidgetProps> = ({
 
   const handleSaveEdit = async (id: string) => {
     if (!onUpdateInversion) return;
-    const s = parseFloat(editSaldo);
-    const r = parseFloat(editRendimiento);
-    if (isNaN(s) || s < 0) return;
-    await onUpdateInversion(id, s, isNaN(r) ? 0 : r);
+    const s = parseMonto(editSaldo);
+    const r = parseMonto(editRendimiento);
+    if (s < 0) return;
+    await onUpdateInversion(id, s, r);
     setEditingId(null);
   };
 
