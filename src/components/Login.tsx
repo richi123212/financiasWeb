@@ -12,8 +12,8 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Código fijo de 5 dígitos requerido para que solo personas conocidas puedan registrarse
-export const CODIGO_REGISTRO_SECRETO = '77777';
-const CODIGOS_AUTORIZADOS_5_DIGITOS = ['77777', '12345', '20261'];
+export const CODIGO_REGISTRO_SECRETO = '89284';
+const CODIGOS_AUTORIZADOS_5_DIGITOS = ['89284'];
 
 interface LoginProps {
   onLoginSuccess: (user: { id: string; email: string; nombre?: string }) => void;
@@ -227,7 +227,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     pattern="[0-9]*"
                     maxLength={5}
                     required
-                    placeholder="5 dígitos (ej. 77777)"
+                    placeholder="5 dígitos de acceso"
                     value={codigoAcceso}
                     onChange={(e) => setCodigoAcceso(e.target.value.replace(/\D/g, '').slice(0, 5))}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm tracking-widest font-mono font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
