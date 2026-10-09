@@ -63,6 +63,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones'>('dashboard');
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [txModalPreset, setTxModalPreset] = useState<{
+    tipo?: TipoTransaccion;
+    tarjetaId?: string;
+    monto?: number;
+  }>({});
 
   // 1. Cargar persistencia inicial (Supabase Auth y LocalStorage para Demo)
   useEffect(() => {
@@ -314,7 +320,12 @@ export default function App() {
     }
   };
 
-  const handlePagarTarjeta = (_tarjetaId: string, _nombreTarjeta: string, _montoSugerido: number) => {
+  const handlePagarTarjeta = (tarjetaId: string, _nombreTarjeta: string, montoSugerido: number) => {
+    setTxModalPreset({
+      tipo: 'pago_tdc',
+      tarjetaId,
+      monto: montoSugerido > 0 ? montoSugerido : undefined,
+    });
     setIsTxModalOpen(true);
   };
 
@@ -567,14 +578,29 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
         {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}
         {metricas.estadoSemaforo === 'peligro' && (
-          <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/50 text-red-200 flex items-start gap-3 shadow-lg shadow-red-900/20 animate-in fade-in duration-300">
-            <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 animate-bounce" />
-            <div className="text-xs sm:text-sm">
-              <strong className="font-bold text-red-100 block sm:inline">
-                ¡Alerta Crítica de Deuda!
-              </strong>{' '}
-              Tu Fondo de Blindaje TDC ({formatCurrency(metricas.fondoBlindajeTdc)}) supera tu efectivo disponible. Si no apartas este dinero ahora mismo, incurrirás en cobro de intereses bancarios. Detén compras extras.
+          <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/50 text-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-red-900/20 animate-in fade-in duration-300">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 animate-bounce" />
+              <div className="text-xs sm:text-sm">
+                <strong className="font-bold text-red-100 block sm:inline">
+                  ¡Atención a tu Liquidez!
+                </strong>{' '}
+                Tu deuda de tarjetas ({formatCurrency(metricas.fondoBlindajeTdc)}) supera el dinero registrado en cuenta ({formatCurrency(metricas.saldoEfectivoDebito)}).
+                <p className="text-[11px] text-red-300/90 mt-1">
+                  Si tienes dinero en tu cuenta bancaria de débito o nómina para cubrir esto, regístralo para ver tu margen real disponible.
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => {
+                setTxModalPreset({ tipo: 'ingreso' });
+                setIsTxModalOpen(true);
+              }}
+              className="flex-shrink-0 px-3.5 py-2 rounded-xl bg-red-800/80 hover:bg-red-700 text-white font-semibold text-xs border border-red-500/50 shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Registrar Dinero en Cuenta</span>
+            </button>
           </div>
         )}
 
@@ -602,9 +628,17 @@ export default function App() {
                   <Wallet className="w-4 h-4 text-emerald-400" />
                   Dinero Actual
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
-                  En Cuenta
-                </span>
+                <button
+                  onClick={() => {
+                    setTxModalPreset({ tipo: 'ingreso' });
+                    setIsTxModalOpen(true);
+                  }}
+                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Registrar dinero disponible en tu cuenta o sueldo"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Añadir Saldo</span>
+                </button>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 {formatCurrency(metricas.saldoEfectivoDebito)}
@@ -744,7 +778,10 @@ export default function App() {
                       key={resumen.tarjeta.id}
                       resumen={resumen}
                       onPagarTarjeta={handlePagarTarjeta}
-                      onEditarTarjeta={() => setIsCardsModalOpen(true)}
+                      onEditarTarjeta={(cardId) => {
+                        setEditingCardId(cardId);
+                        setIsCardsModalOpen(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -899,16 +936,26 @@ export default function App() {
       {/* MODAL DE NUEVA TRANSACCIÓN / COMPRA MSI / PAGO */}
       <NewTransactionModal
         isOpen={isTxModalOpen}
-        onClose={() => setIsTxModalOpen(false)}
+        onClose={() => {
+          setIsTxModalOpen(false);
+          setTxModalPreset({});
+        }}
         tarjetas={tarjetas}
+        initialTipo={txModalPreset.tipo}
+        initialTarjetaId={txModalPreset.tarjetaId}
+        initialMonto={txModalPreset.monto}
         onSubmitTransaction={handleRegistrarTransaccion}
       />
 
       {/* MODAL DE ADMINISTRACIÓN DE TARJETAS */}
       <CardsManagementModal
         isOpen={isCardsModalOpen}
-        onClose={() => setIsCardsModalOpen(false)}
+        onClose={() => {
+          setIsCardsModalOpen(false);
+          setEditingCardId(null);
+        }}
         tarjetas={tarjetas}
+        initialEditingTarjetaId={editingCardId}
         onAddTarjeta={handleAddTarjeta}
         onUpdateTarjeta={handleUpdateTarjeta}
         onDeleteTarjeta={handleDeleteTarjeta}

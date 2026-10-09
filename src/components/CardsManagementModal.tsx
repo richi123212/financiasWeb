@@ -7,6 +7,7 @@ interface CardsManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   tarjetas: Tarjeta[];
+  initialEditingTarjetaId?: string | null;
   onAddTarjeta: (tarjeta: Omit<Tarjeta, 'id' | 'user_id' | 'created_at'>) => Promise<void> | void;
   onUpdateTarjeta: (id: string, updates: Partial<Tarjeta>) => Promise<void> | void;
   onDeleteTarjeta: (id: string) => Promise<void> | void;
@@ -29,6 +30,7 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
   isOpen,
   onClose,
   tarjetas,
+  initialEditingTarjetaId,
   onAddTarjeta,
   onUpdateTarjeta,
   onDeleteTarjeta,
@@ -43,6 +45,22 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
   const [diaCorte, setDiaCorte] = useState('15');
   const [diaLimitePago, setDiaLimitePago] = useState('5');
   const [colorHex, setColorHex] = useState(PRESET_COLORS[0]);
+
+  React.useEffect(() => {
+    if (isOpen && initialEditingTarjetaId) {
+      const found = tarjetas.find((t) => t.id === initialEditingTarjetaId);
+      if (found) {
+        setEditingTarjetaId(found.id);
+        setNombre(found.nombre);
+        setLimiteCredito(found.limite_credito.toString());
+        setSaldoActual(found.saldo_actual.toString());
+        setDiaCorte(found.dia_corte.toString());
+        setDiaLimitePago(found.dia_limite_pago.toString());
+        setColorHex(found.color_hex || PRESET_COLORS[0]);
+        setShowAddForm(true);
+      }
+    }
+  }, [isOpen, initialEditingTarjetaId, tarjetas]);
 
   if (!isOpen) return null;
 
@@ -191,7 +209,12 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Saldo Corriente Actual ($ MXN)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-0.5">
+                    Saldo que debes actualmente ($ MXN)
+                  </label>
+                  <p className="text-[10px] text-slate-400 mb-1">
+                    Lo que llevas gastado en esta tarjeta o debes al corte (ej. 1392)
+                  </p>
                   <input
                     type="number"
                     step="0.01"
@@ -199,7 +222,7 @@ export const CardsManagementModal: React.FC<CardsManagementModalProps> = ({
                     placeholder="0.00"
                     value={saldoActual}
                     onChange={(e) => setSaldoActual(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500 font-semibold"
                   />
                 </div>
 

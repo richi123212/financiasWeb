@@ -6,6 +6,9 @@ interface NewTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   tarjetas: Tarjeta[];
+  initialTipo?: TipoTransaccion;
+  initialTarjetaId?: string;
+  initialMonto?: number;
   onSubmitTransaction: (data: {
     concepto: string;
     monto: number;
@@ -21,7 +24,7 @@ interface NewTransactionModalProps {
 
 const CATEGORIAS_COMUNES: Record<TipoTransaccion, string[]> = {
   gasto: ['Comida', 'Transporte', 'Supermercado', 'Servicios', 'Vivienda', 'Restaurantes', 'Salud', 'Educación', 'Ocio', 'Otros'],
-  ingreso: ['Sueldo', 'Honorarios', 'Ventas', 'Rendimientos', 'Reembolso', 'Regalo', 'Otros'],
+  ingreso: ['Sueldo', 'Honorarios', 'Dinero en Cuenta', 'Ventas', 'Rendimientos', 'Reembolso', 'Otros'],
   pago_tdc: ['Pago para No Generar Intereses', 'Abono Parcial TDC', 'Liquidación Total'],
   inversion: ['Cetesdirecto', 'Cajita Nu', 'Mercado Pago', 'Fondo de Inversión', 'Acciones / ETFs', 'Afore'],
 };
@@ -30,19 +33,39 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   isOpen,
   onClose,
   tarjetas,
+  initialTipo,
+  initialTarjetaId,
+  initialMonto,
   onSubmitTransaction,
 }) => {
-  const [tipo, setTipo] = useState<TipoTransaccion>('gasto');
+  const [tipo, setTipo] = useState<TipoTransaccion>(initialTipo || 'gasto');
   const [concepto, setConcepto] = useState('');
-  const [monto, setMonto] = useState('');
-  const [categoria, setCategoria] = useState(CATEGORIAS_COMUNES.gasto[0]);
-  const [metodoPago, setMetodoPago] = useState<MetodoPago>('tarjeta_credito');
-  const [tarjetaId, setTarjetaId] = useState<string>(tarjetas[0]?.id || '');
+  const [monto, setMonto] = useState(initialMonto ? initialMonto.toString() : '');
+  const [categoria, setCategoria] = useState(CATEGORIAS_COMUNES[initialTipo || 'gasto'][0]);
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>(initialTipo === 'ingreso' || initialTipo === 'inversion' || initialTipo === 'pago_tdc' ? 'efectivo_debito' : 'tarjeta_credito');
+  const [tarjetaId, setTarjetaId] = useState<string>(initialTarjetaId || tarjetas[0]?.id || '');
   const [esMsi, setEsMsi] = useState(false);
   const [plazoMeses, setPlazoMeses] = useState<number>(6);
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialTipo) {
+        setTipo(initialTipo);
+        setCategoria(CATEGORIAS_COMUNES[initialTipo][0]);
+      }
+      if (initialMonto) {
+        setMonto(initialMonto.toString());
+      }
+      if (initialTarjetaId) {
+        setTarjetaId(initialTarjetaId);
+      } else if (tarjetas.length > 0 && (!tarjetaId || !tarjetas.some((t) => t.id === tarjetaId))) {
+        setTarjetaId(tarjetas[0].id);
+      }
+    }
+  }, [isOpen, initialTipo, initialMonto, initialTarjetaId, tarjetas]);
 
   // Si no está abierto el modal, no renderizar
   if (!isOpen) return null;
@@ -50,12 +73,14 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   const handleTipoChange = (nuevoTipo: TipoTransaccion) => {
     setTipo(nuevoTipo);
     setCategoria(CATEGORIAS_COMUNES[nuevoTipo][0]);
-    if (nuevoTipo === 'ingreso' || nuevoTipo === 'inversion') {
+    if (nuevoTipo === 'ingreso' || nuevoTipo === 'inversion' || nuevoTipo === 'pago_tdc') {
       setMetodoPago('efectivo_debito');
       setEsMsi(false);
-    } else if (nuevoTipo === 'pago_tdc') {
-      setMetodoPago('efectivo_debito');
-      setEsMsi(false);
+    } else {
+      setMetodoPago('tarjeta_credito');
+      if (tarjetas.length > 0 && (!tarjetaId || !tarjetas.some((t) => t.id === tarjetaId))) {
+        setTarjetaId(tarjetas[0].id);
+      }
     }
   };
 
