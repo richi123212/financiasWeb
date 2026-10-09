@@ -7,7 +7,7 @@ import {
   Trash2,
   Clock,
   ChevronRight,
-  Award,
+  TrendingUp,
   Layers,
   Copy,
   X,
@@ -19,7 +19,11 @@ import type {
   TipoCarga,
   UserProfile,
 } from '../types';
-import { RUTINAS_PREDEFINIDAS, INITIAL_GYM_WORKOUTS } from '../lib/gymData';
+import {
+  RUTINAS_PREDEFINIDAS,
+  INITIAL_GYM_WORKOUTS,
+  calcularRecomendacionSobrecarga,
+} from '../lib/gymData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface GymTrackerProps {
@@ -30,10 +34,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   const [entrenamientos, setEntrenamientos] = useState<GymEntrenamiento[]>(INITIAL_GYM_WORKOUTS);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Pestaña activa para previsualizar recomendaciones de sobrecarga en el dashboard
+  const [tabRutinaActiva, setTabRutinaActiva] = useState<string>('pecho');
+
   // Estados del modal de nuevo entrenamiento
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [rutinaSeleccionada, setRutinaSeleccionada] = useState<string>('pecho_brazo');
-  const [nombreRutinaCustom, setNombreRutinaCustom] = useState('Día de Pecho / Brazo');
+  const [rutinaSeleccionada, setRutinaSeleccionada] = useState<string>('pecho');
+  const [nombreRutinaCustom, setNombreRutinaCustom] = useState('Día de Pecho');
   const [fechaEntrenamiento, setFechaEntrenamiento] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -71,23 +78,26 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           }
         }
 
-        // Cargar desde LocalStorage si no hay datos en Supabase
+        // Cargar desde LocalStorage si no hay datos en Supabase (filtrando semillas viejas)
         const localData = localStorage.getItem(`finanzshield_gym_${user.id}`);
         if (localData) {
           try {
             const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setEntrenamientos(parsed);
-              setIsLoading(false);
-              return;
+            if (Array.isArray(parsed)) {
+              const valid = parsed.filter((item: any) => !String(item.id).startsWith('seed-'));
+              if (valid.length > 0) {
+                setEntrenamientos(valid);
+                setIsLoading(false);
+                return;
+              }
             }
           } catch (e) {
             console.error('Error parseando gym local:', e);
           }
         }
 
-        // Si no hay nada, usar los iniciales con las notas de Richi
-        setEntrenamientos(INITIAL_GYM_WORKOUTS);
+        // Si no hay entrenamientos registrados, historial limpio listo para su primera sesión
+        setEntrenamientos([]);
       } catch (err) {
         console.error('Error cargando entrenamientos:', err);
       } finally {
@@ -126,7 +136,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     setTimerSeconds(null);
   };
 
-  // 2. Pre-cargar ejercicios según plantilla seleccionada
+  // 2. Pre-cargar ejercicios según plantilla seleccionada con recomendaciones dinámicas
   const handleSelectPlantilla = (plantillaId: string) => {
     setRutinaSeleccionada(plantillaId);
     if (plantillaId === 'custom') {
@@ -146,32 +156,31 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     if (plantilla) {
       setNombreRutinaCustom(plantilla.nombre);
       const mapeados: EjercicioEntrenamiento[] = plantilla.ejercicios.map((ej) => {
-        // Buscar si el usuario ya tiene series registradas de este ejercicio para sugerirle el peso anterior
-        let seriesIniciales: SerieEjercicio[] = [{ peso: 0, reps: 10, tipo: 'efectiva' }];
+        const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
 
-        // Buscar última sesión de este ejercicio
-        for (const ent of entrenamientos) {
-          const encontrado = ent.ejercicios.find(
-            (e) => e.nombre.toLowerCase() === ej.nombre.toLowerCase()
-          );
-          if (encontrado && encontrado.series.length > 0) {
-            seriesIniciales = encontrado.series.map((s) => ({ ...s }));
-            break;
-          }
+        let seriesIniciales: SerieEjercicio[] = [];
+        const numSeries = ej.seriesSugeridas || 3;
+
+        for (let i = 0; i < numSeries; i++) {
+          seriesIniciales.push({
+            peso: rec.pesoSugerido,
+            reps: rec.repsSugeridas,
+            tipo: 'efectiva',
+          });
         }
 
         return {
           nombre: ej.nombre,
           tipo_carga: ej.tipo_carga,
           series: seriesIniciales,
-          objetivo: ej.objetivo,
+          objetivo: rec.recomendacionTexto,
         };
       });
       setEjerciciosEnForm(mapeados);
     }
   };
 
-  const handleOpenNuevoEntrenamiento = (plantillaId: string = 'pecho_brazo') => {
+  const handleOpenNuevoEntrenamiento = (plantillaId: string = 'pecho') => {
     handleSelectPlantilla(plantillaId);
     setFechaEntrenamiento(new Date().toISOString().split('T')[0]);
     setNotasGenerales('');
@@ -377,7 +386,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
           {/* Botón de Iniciar Entrenamiento */}
           <button
-            onClick={() => handleOpenNuevoEntrenamiento('pecho_brazo')}
+            onClick={() => handleOpenNuevoEntrenamiento('pecho')}
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 hover:from-indigo-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-indigo-600/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -489,128 +498,116 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         </div>
       </section>
 
-      {/* 3. OBJETIVOS DE SOBRECARGA PROGRESIVA & RÉCORDS ACTUALES */}
-      <section aria-label="Objetivos de Sobrecarga Progresiva">
-        <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+      {/* 3. ASISTENTE INTELIGENTE DE SOBRECARGA PROGRESIVA (RECOMENDACIONES DINÁMICAS) */}
+      <section aria-label="Recomendaciones de Sobrecarga Progresiva">
+        <div className="p-5 sm:p-6 rounded-2xl bg-[#151D2E] border border-slate-800 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                <Award className="w-4 h-4 text-amber-400" />
+              <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
+                <TrendingUp className="w-4 h-4 text-indigo-400" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-wide">
-                  Tus Metas de Sobrecarga Progresiva (A Seguir)
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Recomendaciones de Sobrecarga para Hoy
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Reglas exactas para saber cuándo subir de peso o barras en cada máquina
+                <p className="text-xs text-slate-400">
+                  Calculadas dinámicamente según lo que levantaste en tu última sesión
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {/* Meta 1: Extensión sentado */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Extensión sentado</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Barras
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: Llegar a 12 reps con 9 barras en todas las series antes de subir peso.
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">9 barras x 6 reps</strong>
-              </div>
-            </div>
-
-            {/* Meta 2: Pantorrilla sentado */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Pantorrilla sentado</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Barras
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: 15 reps limpias con 7 barras, luego subir barras.
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">7 barras x 6 reps</strong>
-              </div>
-            </div>
-
-            {/* Meta 3: Pantorrilla mancuernas */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Pantorrilla mancuernas</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  KG
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: Al llegar a 15 reps con 7kg, subir a 8-10kg.
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">7kg x 12 reps</strong>
-              </div>
-            </div>
-
-            {/* Meta 4: Encogimiento de hombro */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Encogimiento de hombro</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  KG
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: 12-15 reps con 7kg mancuernas; al llegar a 15, subir peso.
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">7kg x 12 reps</strong>
-              </div>
-            </div>
-
-            {/* Meta 5: Elevaciones laterales */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Elevaciones laterales</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  KG
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: 12-15 reps con 5kg (subir reps antes que peso, control total).
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">5kg x 8 reps</strong>
-              </div>
-            </div>
-
-            {/* Meta 6: Militar en máquina */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Militar en máquina</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Barras
-                </span>
-              </div>
-              <div className="text-xs text-amber-300 font-semibold bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-                🎯 Objetivo: 8-10 reps con 7 barras; al llegar a 10 en todas, subir barra.
-              </div>
-              <div className="text-[11px] text-slate-400 flex justify-between pt-1">
-                <span>Récord actual:</span>
-                <strong className="text-white">7 barras x 6 reps</strong>
-              </div>
+            {/* Selector de Rutinas para previsualizar recomendaciones */}
+            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+              {RUTINAS_PREDEFINIDAS.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setTabRutinaActiva(r.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    tabRutinaActiva === r.id
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {r.nombre}
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Grid de ejercicios de la rutina activa con sus recomendaciones dinámicas */}
+          {(() => {
+            const rutinaActiva =
+              RUTINAS_PREDEFINIDAS.find((r) => r.id === tabRutinaActiva) || RUTINAS_PREDEFINIDAS[0];
+
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {rutinaActiva.ejercicios.map((ej, idx) => {
+                    const rec = calcularRecomendacionSobrecarga(
+                      ej.nombre,
+                      ej.tipo_carga,
+                      entrenamientos
+                    );
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between gap-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-extrabold text-sm text-white block">
+                              {ej.nombre}
+                            </span>
+                            <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <span>Último registro:</span>
+                              <strong
+                                className={
+                                  rec.tieneHistorial ? 'text-indigo-300' : 'text-slate-500 font-normal'
+                                }
+                              >
+                                {rec.resumenUltimo}
+                              </strong>
+                            </span>
+                          </div>
+
+                          <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">
+                            {ej.tipo_carga === 'barras'
+                              ? 'Barras'
+                              : ej.tipo_carga === 'kg'
+                              ? 'KG'
+                              : 'Corporal'}
+                          </span>
+                        </div>
+
+                        {/* Recomendación dinámica calculada */}
+                        <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs">
+                          <div className="text-[11px] font-medium text-slate-200 leading-relaxed">
+                            {rec.recomendacionTexto}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
+                          <span className="text-slate-500">Próximo objetivo:</span>
+                          <span className="font-bold text-emerald-400">{rec.siguienteMeta}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => handleOpenNuevoEntrenamiento(rutinaActiva.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Iniciar {rutinaActiva.nombre} Hoy</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 
@@ -637,10 +634,26 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           </div>
 
           {entrenamientos.length === 0 ? (
-            <div className="text-center py-10 text-slate-400">
-              <Dumbbell className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-              <p className="text-sm font-semibold text-slate-300">No hay entrenamientos registrados aún</p>
-              <p className="text-xs mt-1">Haz clic en "Anotar Entrenamiento Hoy" para registrar tu primera sesión.</p>
+            <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto">
+                <Dumbbell className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div className="space-y-1 max-w-md mx-auto">
+                <p className="text-base font-bold text-white">
+                  Bitácora limpia y lista para tu primera sesión en el gimnasio
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Cuando vayas al gym, selecciona Día de Pecho, Día de Espalda o Día de Pierna y anota tus series reales. A partir de esa primera sesión, la app recordará tus pesos y te indicará exactamente cuándo subir repeticiones o subir peso.
+                </p>
+              </div>
+              <div className="pt-2 flex justify-center gap-2">
+                <button
+                  onClick={() => handleOpenNuevoEntrenamiento('pecho')}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Registrar Día de Pecho
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -725,8 +738,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                         </div>
 
                         {ej.objetivo && (
-                          <p className="text-[10px] text-amber-300/80 pt-1 border-t border-slate-700/40 truncate" title={ej.objetivo}>
-                            🎯 {ej.objetivo}
+                          <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-700/40 truncate" title={ej.objetivo}>
+                            Objetivo: {ej.objetivo}
                           </p>
                         )}
                       </div>
@@ -882,21 +895,29 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                       </button>
                     </div>
 
-                    {/* Objetivo de Sobrecarga del ejercicio */}
-                    <input
-                      type="text"
-                      value={ej.objetivo || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEjerciciosEnForm((prev) => {
-                          const copy = [...prev];
-                          copy[ejIdx].objetivo = val;
-                          return copy;
-                        });
-                      }}
-                      placeholder="Objetivo a seguir (ej. Llegar a 12 reps antes de subir peso)"
-                      className="w-full px-3 py-1 bg-slate-800/60 border border-slate-700/60 rounded-lg text-amber-300 text-[11px] focus:outline-none focus:border-amber-500"
-                    />
+                    {/* Recomendación Dinámica de Sobrecarga para este ejercicio */}
+                    {(() => {
+                      const rec = calcularRecomendacionSobrecarga(
+                        ej.nombre,
+                        ej.tipo_carga,
+                        entrenamientos
+                      );
+                      return (
+                        <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 flex-shrink-0">
+                              {rec.tieneHistorial ? `Última vez: ${rec.resumenUltimo}` : 'Primer registro'}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-300">
+                              {rec.recomendacionTexto}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 self-start sm:self-auto flex-shrink-0">
+                            Meta: {rec.siguienteMeta}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Tabla de series */}
                     <div className="space-y-1.5 pt-1">

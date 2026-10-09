@@ -149,11 +149,11 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
               <div className="space-y-2 pt-2 border-t border-slate-800/80">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Flame className="w-4 h-4 text-amber-400" />
-                  <span>Rutinas: Pecho/Brazo, Espalda/Bíceps, Pierna/Hombro</span>
+                  <span>Rutinas: Día de Pecho, Día de Espalda, Día de Pierna</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Target className="w-4 h-4 text-indigo-400" />
-                  <span>Objetivos de sobrecarga (ej. 12 reps antes de subir peso)</span>
+                  <span>Recomendación dinámica para tu siguiente sesión (reps o peso)</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Sparkles className="w-4 h-4 text-emerald-400" />

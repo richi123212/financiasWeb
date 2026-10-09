@@ -2,9 +2,9 @@ import type { PlantillaRutina, GymEntrenamiento } from '../types';
 
 export const RUTINAS_PREDEFINIDAS: PlantillaRutina[] = [
   {
-    id: 'pecho_brazo',
-    nombre: 'Día de Pecho / Brazo',
-    descripcion: 'Enfoque en empuje de pecho, bíceps y tríceps con fondos',
+    id: 'pecho',
+    nombre: 'Día de Pecho',
+    descripcion: 'Empuje de pecho, bíceps, tríceps con fondos y press militar',
     color: '#3B82F6', // Blue
     ejercicios: [
       {
@@ -12,35 +12,31 @@ export const RUTINAS_PREDEFINIDAS: PlantillaRutina[] = [
         tipo_carga: 'kg',
         seriesSugeridas: 3,
         repsSugeridas: '8-10',
-        objetivo: 'Llegar a 8-10 reps con 42kg en todas las series antes de subir peso',
       },
       {
         nombre: 'Curl bíceps',
         tipo_carga: 'kg',
         seriesSugeridas: 3,
         repsSugeridas: '10-12',
-        objetivo: 'Llegar a 12 reps limpias con 12kg antes de subir a 14kg',
       },
       {
         nombre: 'Fondos peso corporal',
         tipo_carga: 'peso_corporal',
         seriesSugeridas: 3,
         repsSugeridas: '10-12',
-        objetivo: 'Llegar a 12 reps limpias en las 3 series',
       },
       {
         nombre: 'Press militar',
         tipo_carga: 'kg',
         seriesSugeridas: 2,
         repsSugeridas: '8-10',
-        objetivo: 'Subir a 3 series de 8 reps con 20kg',
       },
     ],
   },
   {
-    id: 'espalda_biceps',
-    nombre: 'Día de Espalda / Bíceps',
-    descripcion: 'Trabajo de tracción, bíceps y fuerza complementaria',
+    id: 'espalda',
+    nombre: 'Día de Espalda',
+    descripcion: 'Tracción de espalda, bíceps y fuerza complementaria',
     color: '#8B5CF6', // Purple
     ejercicios: [
       {
@@ -48,35 +44,31 @@ export const RUTINAS_PREDEFINIDAS: PlantillaRutina[] = [
         tipo_carga: 'kg',
         seriesSugeridas: 3,
         repsSugeridas: '8-10',
-        objetivo: 'Control y pausa en el pecho',
       },
       {
         nombre: 'Curl bíceps',
         tipo_carga: 'kg',
         seriesSugeridas: 3,
         repsSugeridas: '10-12',
-        objetivo: 'Mantener forma estricta y aislamiento',
       },
       {
         nombre: 'Fondos peso corporal',
         tipo_carga: 'peso_corporal',
         seriesSugeridas: 3,
         repsSugeridas: '8-10',
-        objetivo: 'Bajar controlado y extensión completa',
       },
       {
         nombre: 'Press militar',
         tipo_carga: 'kg',
         seriesSugeridas: 2,
         repsSugeridas: '8-10',
-        objetivo: 'Completar 10 reps estrictas',
       },
     ],
   },
   {
-    id: 'pierna_hombro',
-    nombre: 'Día de Pierna / Hombro',
-    descripcion: 'Extensión y pantorrillas en barras + hombros estrictos',
+    id: 'pierna',
+    nombre: 'Día de Pierna',
+    descripcion: 'Extensión y pantorrillas en barras + hombros y laterales',
     color: '#10B981', // Emerald
     ejercicios: [
       {
@@ -84,190 +76,245 @@ export const RUTINAS_PREDEFINIDAS: PlantillaRutina[] = [
         tipo_carga: 'barras',
         seriesSugeridas: 2,
         repsSugeridas: '8-12',
-        objetivo: 'Llegar a 12 reps en todas con 9 barras antes de subir peso',
       },
       {
         nombre: 'Pantorrilla sentado',
         tipo_carga: 'barras',
         seriesSugeridas: 1,
         repsSugeridas: '10-15',
-        objetivo: '15 reps limpias con 7 barras, luego subir barras',
       },
       {
         nombre: 'Pantorrilla mancuernas',
         tipo_carga: 'kg',
         seriesSugeridas: 1,
         repsSugeridas: '12-15',
-        objetivo: 'Al llegar a 15 reps con 7kg, subir a 8-10kg',
       },
       {
         nombre: 'Encogimiento de hombro',
         tipo_carga: 'kg',
         seriesSugeridas: 1,
         repsSugeridas: '12-15',
-        objetivo: '12-15 reps con 7kg mancuernas; al llegar a 15, subir peso',
       },
       {
         nombre: 'Elevaciones laterales',
         tipo_carga: 'kg',
         seriesSugeridas: 1,
         repsSugeridas: '12-15',
-        objetivo: '12-15 reps con 5kg (sube reps antes que peso, control total)',
       },
       {
         nombre: 'Militar en máquina',
         tipo_carga: 'barras',
         seriesSugeridas: 1,
         repsSugeridas: '8-10',
-        objetivo: '8-10 reps con 7 barras; al llegar a 10 en todas, subir barra',
       },
     ],
   },
 ];
 
-export const INITIAL_GYM_WORKOUTS: GymEntrenamiento[] = [
-  {
-    id: 'seed-pecho-brazo',
-    user_id: 'default',
-    rutina_nombre: 'Día de pecho/brazo',
-    fecha: '2026-08-18',
-    notas: 'Registro inicial de marcas personales.',
-    ejercicios: [
-      {
-        nombre: 'Press banca',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 40, reps: 8, tipo: 'efectiva' },
-          { peso: 40, reps: 8, tipo: 'efectiva' },
-          { peso: 42, reps: 6, tipo: 'efectiva' },
-        ],
-        objetivo: 'Llegar a 8-10 reps con 42kg en todas las series',
-      },
-      {
-        nombre: 'Curl bíceps',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 12, reps: 10, tipo: 'efectiva' },
-          { peso: 12, reps: 10, tipo: 'efectiva' },
-          { peso: 12, reps: 8, tipo: 'efectiva' },
-        ],
-        objetivo: 'Llegar a 12 reps limpias con 12kg antes de subir a 14kg',
-      },
-      {
-        nombre: 'Fondos peso corporal',
-        tipo_carga: 'peso_corporal',
-        series: [
-          { peso: 0, reps: 10, tipo: 'efectiva' },
-          { peso: 0, reps: 8, tipo: 'efectiva' },
-          { peso: 0, reps: 7, tipo: 'efectiva' },
-        ],
-        objetivo: 'Llegar a 12 reps en las 3 series',
-      },
-      {
-        nombre: 'Press militar',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 20, reps: 8, tipo: 'efectiva' },
-          { peso: 20, reps: 8, tipo: 'efectiva' },
-        ],
-        objetivo: 'Subir a 3 series de 8 reps con 20kg',
-      },
-    ],
-  },
-  {
-    id: 'seed-espalda-biceps',
-    user_id: 'default',
-    rutina_nombre: 'Día de espalda/bíceps',
-    fecha: '2026-08-18',
-    notas: 'Enfoque en técnica estricta.',
-    ejercicios: [
-      {
-        nombre: 'Press banca',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 40, reps: 8, tipo: 'efectiva' },
-          { peso: 40, reps: 8, tipo: 'efectiva' },
-          { peso: 42, reps: 6, tipo: 'efectiva' },
-        ],
-        objetivo: 'Control y pausa en el pecho',
-      },
-      {
-        nombre: 'Curl bíceps',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 12, reps: 10, tipo: 'efectiva' },
-          { peso: 12, reps: 10, tipo: 'efectiva' },
-          { peso: 12, reps: 8, tipo: 'efectiva' },
-        ],
-        objetivo: 'Mantener forma estricta',
-      },
-      {
-        nombre: 'Fondos peso corporal',
-        tipo_carga: 'peso_corporal',
-        series: [
-          { peso: 0, reps: 10, tipo: 'efectiva' },
-          { peso: 0, reps: 8, tipo: 'efectiva' },
-          { peso: 0, reps: 7, tipo: 'efectiva' },
-        ],
-        objetivo: 'Bajar controlado',
-      },
-      {
-        nombre: 'Press militar',
-        tipo_carga: 'kg',
-        series: [
-          { peso: 20, reps: 8, tipo: 'efectiva' },
-          { peso: 20, reps: 8, tipo: 'efectiva' },
-        ],
-        objetivo: 'Completar 10 reps',
-      },
-    ],
-  },
-  {
-    id: 'seed-pierna-hombro',
-    user_id: 'default',
-    rutina_nombre: 'Día de pierna/hombro',
-    fecha: '2026-08-20',
-    notas: 'Pierna y hombro con objetivos de sobrecarga definidos.',
-    ejercicios: [
-      {
-        nombre: 'Extensión sentado',
-        tipo_carga: 'barras',
-        series: [
-          { peso: 4, reps: 12, tipo: 'calentamiento' },
-          { peso: 9, reps: 6, tipo: 'efectiva' },
-        ],
-        objetivo: 'Llegar a 12 reps con 9 barras en todas antes de subir peso',
-      },
-      {
-        nombre: 'Pantorrilla sentado',
-        tipo_carga: 'barras',
-        series: [{ peso: 7, reps: 6, tipo: 'efectiva' }],
-        objetivo: '15 reps limpias con 7 barras, luego subir barras',
-      },
-      {
-        nombre: 'Pantorrilla mancuernas',
-        tipo_carga: 'kg',
-        series: [{ peso: 7, reps: 12, tipo: 'efectiva' }],
-        objetivo: 'Al llegar a 15 reps, subir a 8-10kg',
-      },
-      {
-        nombre: 'Encogimiento de hombro',
-        tipo_carga: 'kg',
-        series: [{ peso: 7, reps: 12, tipo: 'efectiva' }],
-        objetivo: 'Meta: 12-15 reps con 7kg, al llegar a 15 subir peso',
-      },
-      {
-        nombre: 'Elevaciones laterales',
-        tipo_carga: 'kg',
-        series: [{ peso: 5, reps: 8, tipo: 'efectiva' }],
-        objetivo: 'Meta: 12-15 reps con 5kg (subir reps antes que peso, control total)',
-      },
-      {
-        nombre: 'Militar en máquina',
-        tipo_carga: 'barras',
-        series: [{ peso: 7, reps: 6, tipo: 'efectiva' }],
-        objetivo: 'Meta: 8-10 reps con 7 barras (al llegar a 10 en todas, subir barra)',
-      },
-    ],
-  },
-];
+export const INITIAL_GYM_WORKOUTS: GymEntrenamiento[] = [];
+
+export interface RecomendacionSobrecarga {
+  tieneHistorial: boolean;
+  ultimoPeso: number;
+  ultimasReps: number;
+  unidad: string;
+  resumenUltimo: string;
+  accion: 'establecer_base' | 'subir_reps' | 'subir_peso' | 'consolidar';
+  recomendacionTexto: string;
+  siguienteMeta: string;
+  pesoSugerido: number;
+  repsSugeridas: number;
+}
+
+/**
+ * Motor Dinámico de Sobrecarga Progresiva:
+ * Analiza la última sesión del usuario en ese ejercicio y determina si hoy debe:
+ * - Subir repeticiones con el mismo peso (ej. "Hiciste 6 reps con 5kg. Ahora haz 8 reps con 5kg antes de subir peso")
+ * - Subir peso / barras (ej. "¡Completaste las 12 reps! Sube +1 barra o +2.5kg y busca 6-8 reps")
+ */
+export function calcularRecomendacionSobrecarga(
+  nombreEjercicio: string,
+  tipoCarga: 'kg' | 'barras' | 'peso_corporal',
+  entrenamientos: GymEntrenamiento[]
+): RecomendacionSobrecarga {
+  const unidad = tipoCarga === 'barras' ? 'barras' : tipoCarga === 'kg' ? 'kg' : 'reps';
+
+  // Buscar última sesión donde se realizó este ejercicio
+  let ultimaSerie: { peso: number; reps: number } | null = null;
+
+  for (const ent of entrenamientos) {
+    const ej = ent.ejercicios.find(
+      (e) => e.nombre.trim().toLowerCase() === nombreEjercicio.trim().toLowerCase()
+    );
+    if (ej && ej.series && ej.series.length > 0) {
+      // Tomar la serie más pesada o con más reps de esa sesión
+      let mejor = ej.series[0];
+      for (const s of ej.series) {
+        if (s.peso > mejor.peso) {
+          mejor = s;
+        } else if (s.peso === mejor.peso && s.reps > mejor.reps) {
+          mejor = s;
+        }
+      }
+      ultimaSerie = { peso: mejor.peso, reps: mejor.reps };
+      break;
+    }
+  }
+
+  // Si no hay historial previo:
+  if (!ultimaSerie) {
+    return {
+      tieneHistorial: false,
+      ultimoPeso: 0,
+      ultimasReps: 0,
+      unidad,
+      resumenUltimo: 'Sin registro previo',
+      accion: 'establecer_base',
+      recomendacionTexto: 'Anota tu primera sesión. Busca un peso con el que logres entre 8 y 10 repeticiones limpias.',
+      siguienteMeta: 'Establecer peso base (8-10 reps)',
+      pesoSugerido: tipoCarga === 'peso_corporal' ? 0 : tipoCarga === 'barras' ? 4 : 10,
+      repsSugeridas: 10,
+    };
+  }
+
+  const { peso, reps } = ultimaSerie;
+
+  // CASO 1: Peso Corporal (Fondos, dominadas)
+  if (tipoCarga === 'peso_corporal') {
+    if (reps < 8) {
+      return {
+        tieneHistorial: true,
+        ultimoPeso: 0,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${reps} reps`,
+        accion: 'subir_reps',
+        recomendacionTexto: `Hiciste ${reps} reps corporales. Hoy enfócate en sacar 8 reps con rango completo.`,
+        siguienteMeta: 'Llegar a 8 reps limpias',
+        pesoSugerido: 0,
+        repsSugeridas: 8,
+      };
+    } else if (reps < 12) {
+      const meta = reps >= 10 ? 12 : 10;
+      return {
+        tieneHistorial: true,
+        ultimoPeso: 0,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${reps} reps`,
+        accion: 'subir_reps',
+        recomendacionTexto: `Hiciste ${reps} reps corporales. Ahora intenta sacar ${meta} reps con bajada controlada.`,
+        siguienteMeta: `Llegar a ${meta} reps`,
+        pesoSugerido: 0,
+        repsSugeridas: meta,
+      };
+    } else {
+      return {
+        tieneHistorial: true,
+        ultimoPeso: 0,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${reps} reps`,
+        accion: 'consolidar',
+        recomendacionTexto: `Hiciste ${reps} reps corporales. ¡Excelente volumen! Busca 13-15 reps o haz una pausa de 2 segundos abajo.`,
+        siguienteMeta: '13-15 reps o pausa isométrica',
+        pesoSugerido: 0,
+        repsSugeridas: reps + 1,
+      };
+    }
+  }
+
+  // CASO 2: Barras de Máquina (Extensión sentado, Militar en máquina, Pantorrilla sentado)
+  if (tipoCarga === 'barras') {
+    if (reps < 8) {
+      return {
+        tieneHistorial: true,
+        ultimoPeso: peso,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${peso} barras × ${reps} reps`,
+        accion: 'subir_reps',
+        recomendacionTexto: `Hiciste ${reps} reps con ${peso} barras. Mantén ${peso} barras y ahora busca sacar 8 reps antes de subir barra.`,
+        siguienteMeta: `8 reps con ${peso} barras`,
+        pesoSugerido: peso,
+        repsSugeridas: 8,
+      };
+    } else if (reps < 12) {
+      const meta = reps >= 10 ? 12 : 10;
+      return {
+        tieneHistorial: true,
+        ultimoPeso: peso,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${peso} barras × ${reps} reps`,
+        accion: 'subir_reps',
+        recomendacionTexto: `Hiciste ${reps} reps con ${peso} barras. Ahora intenta sacar ${meta} reps limpias con las mismas ${peso} barras.`,
+        siguienteMeta: `${meta} reps con ${peso} barras`,
+        pesoSugerido: peso,
+        repsSugeridas: meta,
+      };
+    } else {
+      // Ya dominó las 12 reps con ese número de barras -> Subir 1 barra
+      const nuevasBarras = peso + 1;
+      return {
+        tieneHistorial: true,
+        ultimoPeso: peso,
+        ultimasReps: reps,
+        unidad,
+        resumenUltimo: `${peso} barras × ${reps} reps`,
+        accion: 'subir_peso',
+        recomendacionTexto: `Hiciste ${reps} reps con ${peso} barras. ¡Completaste el rango! Hoy sube a ${nuevasBarras} barras y busca entre 6 y 8 reps.`,
+        siguienteMeta: `Subir a ${nuevasBarras} barras (6-8 reps)`,
+        pesoSugerido: nuevasBarras,
+        repsSugeridas: 8,
+      };
+    }
+  }
+
+  // CASO 3: KG (Mancuernas y Barras libres)
+  // Ej: 5kg x 6 reps -> "Hiciste 6 reps con 5kg. Ahora haz 8 reps con 5kg antes de subir peso."
+  if (reps < 8) {
+    return {
+      tieneHistorial: true,
+      ultimoPeso: peso,
+      ultimasReps: reps,
+      unidad,
+      resumenUltimo: `${peso}kg × ${reps} reps`,
+      accion: 'subir_reps',
+      recomendacionTexto: `Hiciste ${reps} reps con ${peso}kg. Ahora haz 8 reps con los mismos ${peso}kg con buena técnica antes de subir.`,
+      siguienteMeta: `8 reps con ${peso}kg`,
+      pesoSugerido: peso,
+      repsSugeridas: 8,
+    };
+  } else if (reps < 12) {
+    const meta = reps >= 10 ? 12 : 10;
+    return {
+      tieneHistorial: true,
+      ultimoPeso: peso,
+      ultimasReps: reps,
+      unidad,
+      resumenUltimo: `${peso}kg × ${reps} reps`,
+      accion: 'subir_reps',
+      recomendacionTexto: `Hiciste ${reps} reps con ${peso}kg. Ahora intenta llegar a ${meta} reps con los mismos ${peso}kg antes de subir peso.`,
+      siguienteMeta: `${meta} reps con ${peso}kg`,
+      pesoSugerido: peso,
+      repsSugeridas: meta,
+    };
+  } else {
+    // Ya sacó 12 o más reps -> Toca subir peso
+    const incremento = peso <= 8 ? (peso === 7 ? 1 : 2) : 2.5;
+    const nuevoPeso = peso + incremento;
+    return {
+      tieneHistorial: true,
+      ultimoPeso: peso,
+      ultimasReps: reps,
+      unidad,
+      resumenUltimo: `${peso}kg × ${reps} reps`,
+      accion: 'subir_peso',
+      recomendacionTexto: `Hiciste ${reps} reps con ${peso}kg. ¡Completaste el rango! Hoy súbele a ${nuevoPeso}kg y busca sacar de 6 a 8 reps.`,
+      siguienteMeta: `Subir a ${nuevoPeso}kg (6-8 reps)`,
+      pesoSugerido: nuevoPeso,
+      repsSugeridas: 8,
+    };
+  }
+}

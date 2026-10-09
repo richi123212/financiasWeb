@@ -152,6 +152,6 @@ export interface PlantillaRutina {
     tipo_carga: TipoCarga;
     seriesSugeridas: number;
     repsSugeridas: string;
-    objetivo: string;
+    objetivo?: string;
   }[];
 }
