@@ -408,18 +408,6 @@ export default function App() {
     }
   };
 
-  const handleResetDemoData = () => {
-    if (confirm('¿Restablecer datos de demostración a valores iniciales?')) {
-      localStorage.removeItem(STORAGE_KEY);
-      setTarjetas(INITIAL_TARJETAS);
-      setComprasMsi(INITIAL_MSI);
-      setTransacciones(INITIAL_TRANSACCIONES);
-      setInversiones(INITIAL_INVERSIONES);
-      setGastosFijos(INITIAL_GASTOS_FIJOS);
-      setSaldoBaseEfectivo(32500);
-    }
-  };
-
   const handleLogout = async () => {
     if (!isDemoMode && isSupabaseConfigured) {
       await supabase.auth.signOut();
@@ -462,11 +450,9 @@ export default function App() {
     <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30">
       {/* 1. Navbar Superior */}
       <Navbar
-        user={user || { id: 'demo-user', email: 'demo@finanzshield.app', nombre: 'Demostración Interactiva' }}
+        user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Usuario' }}
         metricas={metricas}
-        isDemoMode={isDemoMode}
         onLogout={handleLogout}
-        onResetDemo={isDemoMode ? handleResetDemoData : undefined}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Mail, ArrowRight, Sparkles, AlertCircle, Database, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface LoginProps {
   onLoginSuccess: (user: { id: string; email: string }) => void;
-  onEnterDemoMode: () => void;
+  onEnterDemoMode?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +21,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode })
     setSuccessMsg('');
 
     if (!isSupabaseConfigured) {
-      setErrorMsg('Supabase no está configurado en .env. Puedes entrar en Modo Demo o configurar tus variables de entorno.');
+      setErrorMsg('Error de configuración del servidor.');
       return;
     }
 
@@ -38,7 +38,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode })
           if (data.session) {
             onLoginSuccess({ id: data.user.id, email: data.user.email || '' });
           } else {
-            setSuccessMsg('¡Cuenta creada! Revisa tu correo electrónico para confirmar tu registro.');
+            setSuccessMsg('¡Cuenta creada con éxito! Ya puedes iniciar sesión.');
+            setIsSignUp(false);
           }
         }
       } else {
@@ -76,9 +77,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode })
           <h1 className="text-3xl font-extrabold tracking-tight font-['Plus_Jakarta_Sans']">
             Finan<span className="text-emerald-400">zas</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-2">
-            Blindaje total contra deudas de TDC, control de MSI y cálculo de liquidez real.
-          </p>
         </div>
 
         {/* Tarjeta Principal de Autenticación */}
@@ -155,35 +153,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onEnterDemoMode })
               {isSignUp ? '¿Ya tienes cuenta? Inicia sesión aquí' : '¿No tienes cuenta? Regístrate en 30 segundos'}
             </button>
           </div>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-800" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-[#161F30] text-slate-400 font-medium">O prueba de inmediato</span>
-            </div>
-          </div>
-
-          {/* Botón de Modo Demo Interactivo */}
-          <button
-            onClick={onEnterDemoMode}
-            type="button"
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 font-semibold text-xs transition-all shadow-sm group"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
-            <span>Explorar en Modo Demo Interactivo</span>
-          </button>
-        </div>
-
-        {/* Nota informativa de Supabase */}
-        <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
-          <Database className="w-3.5 h-3.5 text-slate-400" />
-          <span>
-            {isSupabaseConfigured
-              ? 'Conectado a tu proyecto de Supabase'
-              : 'Supabase no detectado en .env (Modo Demo disponible)'}
-          </span>
         </div>
       </div>
     </div>

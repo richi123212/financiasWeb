@@ -1,13 +1,11 @@
 import React from 'react';
-import { Shield, ShieldAlert, ShieldCheck, LogOut, RefreshCw, Database, Sparkles, Plus } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, LogOut, Plus } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
 interface NavbarProps {
   user: UserProfile | null;
   metricas: MetricasFinancieras;
-  isDemoMode: boolean;
   onLogout: () => void;
-  onResetDemo?: () => void;
   activeTab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones';
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
@@ -16,9 +14,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   user,
   metricas,
-  isDemoMode,
   onLogout,
-  onResetDemo,
   activeTab,
   setActiveTab,
   onOpenNewModal,
@@ -67,9 +63,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   v1.0
                 </span>
               </div>
-              <p className="hidden sm:block text-[11px] text-slate-400 -mt-0.5">
-                Control de TDC, MSI & Liquidez Real
-              </p>
             </div>
           </div>
 
@@ -86,24 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>+ Movimiento</span>
             </button>
 
-            {isDemoMode ? (
-              <div
-                title="Modo interactivo activo. Configura .env para Supabase."
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
-              >
-                <Sparkles className="w-3 h-3 text-indigo-400" />
-                <span>Modo Demo</span>
-              </div>
-            ) : (
-              <div
-                title="Sincronizado con Supabase"
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-              >
-                <Database className="w-3 h-3 text-emerald-400" />
-                <span>Supabase Live</span>
-              </div>
-            )}
-
             {/* Usuario y Logout */}
             <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
               <div className="hidden sm:flex flex-col text-right">
@@ -114,16 +89,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {user?.email?.split('@')[0] || 'Finanzas Activas'}
                 </span>
               </div>
-
-              {isDemoMode && onResetDemo && (
-                <button
-                  onClick={onResetDemo}
-                  title="Reiniciar datos de demostración"
-                  className="p-2 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
 
               <button
                 onClick={onLogout}
