@@ -434,6 +434,7 @@ export function obtenerEjerciciosParaRutina(
   nombre: string;
   tipo_carga: 'kg' | 'barras' | 'peso_corporal';
   series: { peso: number; reps: number; tipo?: 'calentamiento' | 'efectiva' | 'fallo' }[];
+  marcaAnterior?: string;
   objetivo?: string;
 }[] {
   const normRutina = rutinaId.toLowerCase();
@@ -449,46 +450,36 @@ export function obtenerEjerciciosParaRutina(
 
   if (sesionPrevia && sesionPrevia.ejercicios && sesionPrevia.ejercicios.length > 0) {
     return sesionPrevia.ejercicios.map((ej) => {
-      const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
-      // Tomar las series efectivas de la sesión previa con los pesos actualizados
-      const seriesEfectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
-      const seriesBase = seriesEfectivas.length > 0 ? seriesEfectivas : ej.series;
+      // Tomar las series de la sesión previa
+      const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
+      const seriesBase = efectivas.length > 0 ? efectivas : ej.series;
+
+      // Calcular la marca anterior como referencia rápida
+      const serieMax = seriesBase.reduce(
+        (max, s) => (s.peso > max.peso ? s : s.peso === max.peso && s.reps > max.reps ? s : max),
+        seriesBase[0] || { peso: 0, reps: 0 }
+      );
+      const unidad = ej.tipo_carga === 'barras' ? 'barras' : ej.tipo_carga === 'kg' ? 'kg' : 'reps';
+      const marcaAnterior =
+        ej.tipo_carga === 'peso_corporal'
+          ? `${serieMax.reps} reps`
+          : `${serieMax.peso}${unidad} × ${serieMax.reps} reps`;
 
       return {
         nombre: ej.nombre,
         tipo_carga: ej.tipo_carga,
         series: seriesBase.map((s) => ({
-          peso: rec.pesoSugerido > 0 ? rec.pesoSugerido : s.peso,
-          reps: rec.repsSugeridas > 0 ? rec.repsSugeridas : s.reps,
+          peso: s.peso,
+          reps: s.reps,
           tipo: 'efectiva' as const,
         })),
-        objetivo: rec.recomendacionTexto,
+        marcaAnterior,
       };
     });
   }
 
-  // Si no hay historial previo para esta rutina, usar la plantilla predeterminada
-  const plantilla =
-    RUTINAS_PREDEFINIDAS.find((r) => r.id === rutinaId) || RUTINAS_PREDEFINIDAS[0];
-
-  return plantilla.ejercicios.map((ej) => {
-    const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
-    const series = [];
-    const numSeries = ej.seriesSugeridas || 4;
-    for (let i = 0; i < numSeries; i++) {
-      series.push({
-        peso: rec.pesoSugerido,
-        reps: rec.repsSugeridas,
-        tipo: 'efectiva' as const,
-      });
-    }
-    return {
-      nombre: ej.nombre,
-      tipo_carga: ej.tipo_carga,
-      series,
-      objetivo: rec.recomendacionTexto,
-    };
-  });
+  // Si no hay historial previo para esta rutina, regresar vacío para que el usuario cree su propia lista
+  return [];
 }
 
 /**

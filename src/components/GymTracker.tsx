@@ -7,7 +7,6 @@ import {
   Trash2,
   Clock,
   ChevronRight,
-  TrendingUp,
   X,
   Check,
   CheckCircle2,
@@ -18,7 +17,6 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Save,
   CheckCheck,
 } from 'lucide-react';
 import type {
@@ -28,12 +26,8 @@ import type {
   UserProfile,
 } from '../types';
 import {
-  RUTINAS_PREDEFINIDAS,
   INITIAL_GYM_WORKOUTS,
-  calcularRecomendacionSobrecarga,
   obtenerSugerenciaCalentamiento,
-  CICLO_3_RUTINAS,
-  getSiguienteRutina,
   obtenerEjerciciosParaRutina,
   reproducirChimeFinDescanso,
 } from '../lib/gymData';
@@ -49,12 +43,12 @@ export interface EjercicioSesionActiva {
   series: (SerieEjercicio & { completada?: boolean })[];
   guardado: boolean; // ¿Guardado / Completado en esta sesión?
   omitido: boolean;  // ¿Omitido hoy? (Se mantienen sus marcas anteriores)
-  objetivo?: string;
+  marcaAnterior?: string;
   mostrarCalentamiento?: boolean;
 }
 
 export interface SesionEnCurso {
-  rutinaId: string; // 'pecho' | 'espalda' | 'pierna' | 'custom'
+  rutinaId: string; // 'pecho' | 'espalda' | 'pierna'
   rutinaNombre: string;
   fecha: string;
   notas: string;
@@ -66,6 +60,27 @@ export interface SesionEnCurso {
 interface GymTrackerProps {
   user: UserProfile;
 }
+
+const RUTINAS_3_PRINCIPALES = [
+  {
+    id: 'pecho',
+    nombre: 'Día de Pecho',
+    subtitulo: 'Pecho, tríceps y empuje',
+    color: '#3B82F6', // Azul
+  },
+  {
+    id: 'espalda',
+    nombre: 'Día de Espalda',
+    subtitulo: 'Espalda, bíceps y tracción',
+    color: '#8B5CF6', // Púrpura
+  },
+  {
+    id: 'pierna',
+    nombre: 'Día de Pierna',
+    subtitulo: 'Piernas, pantorrillas y hombros',
+    color: '#10B981', // Esmeralda
+  },
+];
 
 function formatearFechaRelativa(fechaStr: string): string {
   try {
@@ -112,7 +127,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       const saved = localStorage.getItem(`finanzshield_gym_active_session_${user.id}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.ejercicios) && parsed.ejercicios.length > 0) {
+        if (parsed && Array.isArray(parsed.ejercicios)) {
           return parsed;
         }
       }
@@ -124,28 +139,23 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
   const [isModoEntrenamientoOpen, setIsModoEntrenamientoOpen] = useState(false);
 
-  // 3. PESTAÑA ACTIVA EN DASHBOARD
-  const [tabRutinaActiva, setTabRutinaActiva] = useState<string>('pecho');
-
-  // 4. TEMPORIZADOR DE DESCANSO
+  // 3. TEMPORIZADOR DE DESCANSO
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSonidoHabilitado, setTimerSonidoHabilitado] = useState(true);
   const [timerMensajeAlerta, setTimerMensajeAlerta] = useState<string | null>(null);
 
-  // 5. MODAL DE FINALIZACIÓN EXITOSA / SIGUIENTE RUTINA
+  // 4. MODAL DE FINALIZACIÓN EXITOSA
   const [resumenFinalizado, setResumenFinalizado] = useState<{
     rutinaTerminada: string;
     ejerciciosGuardados: number;
     ejerciciosOmitidos: number;
-    siguienteRutina: { id: string; nombre: string; color: string };
   } | null>(null);
 
-  // 6. Cargar entrenamientos desde Supabase (o confirmar localStorage)
+  // 5. Cargar entrenamientos desde Supabase y fusionar con registros locales
   useEffect(() => {
     const fetchGymData = async () => {
       try {
-        // 1. Obtener datos locales existentes para no perder nada si se guardó sin conexión
         let localEntrenamientos: GymEntrenamiento[] = [];
         const localData = localStorage.getItem(`finanzshield_gym_${user.id}`);
         if (localData) {
@@ -161,7 +171,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           }
         }
 
-        // 2. Si Supabase está disponible, consultar la tabla gym_entrenamientos
         if (isSupabaseConfigured && user.id !== 'demo-user') {
           const { data, error } = await supabase
             .from('gym_entrenamientos')
@@ -180,11 +189,10 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               created_at: row.created_at,
             }));
 
-            // FUSIONAR: preservar cualquier registro que esté en local (por ejemplo con id local-...)
+            // FUSIONAR: preservar cualquier registro local que aún no esté en Supabase
             const idsEnSupabase = new Set(mapped.map((m) => m.id));
             const soloLocales = localEntrenamientos.filter((l) => !idsEnSupabase.has(l.id));
 
-            // Si hay registros locales únicos (como el día de espalda guardado previamente), respaldarlos en Supabase
             for (const itemLocal of soloLocales) {
               try {
                 const { data: supaInsert } = await supabase
@@ -220,7 +228,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           }
         }
 
-        // Si no hay Supabase o falló la conexión, usar lo que ya tenemos en local
         if (localEntrenamientos.length > 0) {
           setEntrenamientos(localEntrenamientos);
         }
@@ -242,7 +249,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     localStorage.setItem(`finanzshield_gym_${user.id}`, JSON.stringify(entrenamientos));
   }, [entrenamientos, user.id, hasLoadedInitial]);
 
-  // Guardar en LocalStorage la sesión en curso en tiempo real (para no perder datos al recargar)
+  // Guardar en LocalStorage la sesión en curso en tiempo real
   useEffect(() => {
     if (sesionEnCurso) {
       localStorage.setItem(
@@ -253,13 +260,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       localStorage.removeItem(`finanzshield_gym_active_session_${user.id}`);
     }
   }, [sesionEnCurso, user.id]);
-
-  // Si al abrir la app hay una sesión en curso guardada, sugerir su pestaña o tenerla lista
-  useEffect(() => {
-    if (sesionEnCurso && sesionEnCurso.rutinaId) {
-      setTabRutinaActiva(sesionEnCurso.rutinaId);
-    }
-  }, []);
 
   // ----------------------------------------------------------------------
   // TEMPORIZADOR DE DESCANSO
@@ -317,45 +317,25 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   };
 
   // ----------------------------------------------------------------------
-  // CÁLCULO DE SIGUIENTE ENTRENAMIENTO EN EL CICLO DE 3 DÍAS
+  // INFORMACIÓN DE LAS 3 RUTINAS BASADA DIRECTAMENTE EN TU HISTORIAL
   // ----------------------------------------------------------------------
-  const siguienteRutinaSugerida = useMemo(() => {
-    // 1. Revisar si hay una preferencia guardada en localStorage
-    const savedNext = localStorage.getItem(`finanzshield_gym_proxima_rutina_${user.id}`);
-    if (savedNext) {
-      const match = CICLO_3_RUTINAS.find((r) => r.id === savedNext);
-      if (match) return match;
-    }
-
-    // 2. Si hay entrenamientos registrados, calcular a partir del más reciente
-    if (entrenamientos.length > 0) {
-      const ultimo = entrenamientos[0];
-      return getSiguienteRutina(ultimo.rutina_nombre);
-    }
-
-    // 3. Por defecto, empezar con Pecho
-    return CICLO_3_RUTINAS[0];
-  }, [entrenamientos, user.id]);
-
-  // Resumen de las 3 rutinas del ciclo
-  const rutinasCiclo = useMemo(() => {
-    return CICLO_3_RUTINAS.map((r, index) => {
-      // Buscar última sesión de esta rutina
-      const ultimaSesion = entrenamientos.find((e) =>
+  const estadoRutinas = useMemo(() => {
+    return RUTINAS_3_PRINCIPALES.map((r) => {
+      // Buscar última sesión de esta rutina en el historial
+      const sesionPrevia = entrenamientos.find((e) =>
         e.rutina_nombre.toLowerCase().includes(r.id)
       );
-      const esLaSiguiente = siguienteRutinaSugerida.id === r.id;
+
       return {
         ...r,
-        orden: index + 1,
-        ultimaSesion,
-        esLaSiguiente,
+        ultimaSesion: sesionPrevia,
+        ejerciciosEnHistorial: sesionPrevia ? sesionPrevia.ejercicios : [],
       };
     });
-  }, [entrenamientos, siguienteRutinaSugerida]);
+  }, [entrenamientos]);
 
   // ----------------------------------------------------------------------
-  // INICIAR / REANUDAR MODO ENTRENAMIENTO
+  // INICIAR ENTRENAMIENTO (3 OPCIONES DIRECTAS Y LIBRES)
   // ----------------------------------------------------------------------
   const handleIniciarEntrenamiento = (rutinaId: string) => {
     // Si ya hay una sesión en curso de esta rutina, reanudarla directamente
@@ -364,7 +344,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       return;
     }
 
-    // Si hay una sesión en curso pero de otra rutina, confirmar antes de reemplazar
     if (sesionEnCurso && sesionEnCurso.rutinaId !== rutinaId) {
       const conf = confirm(
         `Tienes un entrenamiento en curso de "${sesionEnCurso.rutinaNombre}". ¿Deseas descartarlo y comenzar con ${rutinaId.toUpperCase()}?`
@@ -372,28 +351,49 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (!conf) return;
     }
 
-    // Crear sesión fresca cargando ejercicios (priorizando los ya registrados por el usuario)
-    const plantilla = RUTINAS_PREDEFINIDAS.find((p) => p.id === rutinaId);
-    const nombreRutina = plantilla ? plantilla.nombre : `Día de ${rutinaId.toUpperCase()}`;
+    const rutinaConfig = RUTINAS_3_PRINCIPALES.find((r) => r.id === rutinaId);
+    const nombreRutina = rutinaConfig ? rutinaConfig.nombre : `Día de ${rutinaId}`;
 
-    // Obtener los ejercicios para esta rutina (respetando los de su última sesión guardada)
+    // Obtener los ejercicios que el usuario ya registró en su historial para este día
     const ejerciciosBase = obtenerEjerciciosParaRutina(rutinaId, entrenamientos);
 
-    const mapeados: EjercicioSesionActiva[] = ejerciciosBase.map((ej, idx) => ({
-      id: `ej-${Date.now()}-${idx}`,
-      nombre: ej.nombre,
-      tipo_carga: ej.tipo_carga,
-      series: ej.series.map((s) => ({
-        peso: s.peso,
-        reps: s.reps,
-        tipo: s.tipo || 'efectiva',
-        completada: false,
-      })),
-      guardado: false,
-      omitido: false,
-      objetivo: ej.objetivo,
-      mostrarCalentamiento: false,
-    }));
+    let mapeados: EjercicioSesionActiva[] = [];
+
+    if (ejerciciosBase.length > 0) {
+      mapeados = ejerciciosBase.map((ej, idx) => ({
+        id: `ej-${Date.now()}-${idx}`,
+        nombre: ej.nombre,
+        tipo_carga: ej.tipo_carga,
+        series: ej.series.map((s) => ({
+          peso: s.peso,
+          reps: s.reps,
+          tipo: s.tipo || 'efectiva',
+          completada: false,
+        })),
+        guardado: false,
+        omitido: false,
+        marcaAnterior: ej.marcaAnterior,
+        mostrarCalentamiento: false,
+      }));
+    } else {
+      // Si aún no tiene ejercicios guardados, inicializar con 1 ejercicio listo para que escriba su lista
+      mapeados = [
+        {
+          id: `ej-${Date.now()}-0`,
+          nombre: '',
+          tipo_carga: 'kg',
+          series: [
+            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+          ],
+          guardado: false,
+          omitido: false,
+          mostrarCalentamiento: false,
+        },
+      ];
+    }
 
     const nuevaSesion: SesionEnCurso = {
       rutinaId,
@@ -419,20 +419,80 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // ----------------------------------------------------------------------
   // MANIPULACIÓN DE EJERCICIOS Y SERIES EN MODO ENTRENAMIENTO
   // ----------------------------------------------------------------------
-  const handleGuardarEjercicio = (ejIndex: number) => {
+  const handleAddEjercicio = () => {
+    if (!sesionEnCurso) return;
+    const nuevoId = `ej-${Date.now()}-${sesionEnCurso.ejercicios.length}`;
+    const nuevoEj: EjercicioSesionActiva = {
+      id: nuevoId,
+      nombre: '',
+      tipo_carga: 'kg',
+      series: [
+        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
+      ],
+      guardado: false,
+      omitido: false,
+      mostrarCalentamiento: false,
+    };
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        ejercicios: [...prev.ejercicios, nuevoEj],
+      };
+    });
+  };
+
+  const handleUpdateEjercicioNombre = (ejIndex: number, nombre: string) => {
     if (!sesionEnCurso) return;
     setSesionEnCurso((prev) => {
       if (!prev) return null;
       const copy = { ...prev };
-      const ej = copy.ejercicios[ejIndex];
-      ej.guardado = true;
-      ej.omitido = false;
-      // Marcar todas las series como completadas
-      ej.series = ej.series.map((s) => ({ ...s, completada: true }));
+      copy.ejercicios[ejIndex].nombre = nombre;
+      return copy;
+    });
+  };
+
+  const handleUpdateEjercicioTipoCarga = (ejIndex: number, tipo_carga: TipoCarga) => {
+    if (!sesionEnCurso) return;
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      const copy = { ...prev };
+      copy.ejercicios[ejIndex].tipo_carga = tipo_carga;
+      return copy;
+    });
+  };
+
+  const handleRemoveEjercicio = (ejIndex: number) => {
+    if (!sesionEnCurso) return;
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      const copy = { ...prev };
+      copy.ejercicios.splice(ejIndex, 1);
+      return copy;
+    });
+  };
+
+  const handleGuardarEjercicio = (ejIndex: number) => {
+    if (!sesionEnCurso) return;
+    const ej = sesionEnCurso.ejercicios[ejIndex];
+    if (!ej.nombre.trim()) {
+      alert('Escribe el nombre del ejercicio antes de guardarlo.');
+      return;
+    }
+
+    setSesionEnCurso((prev) => {
+      if (!prev) return null;
+      const copy = { ...prev };
+      const e = copy.ejercicios[ejIndex];
+      e.guardado = true;
+      e.omitido = false;
+      e.series = e.series.map((s) => ({ ...s, completada: true }));
       return copy;
     });
 
-    // Iniciar temporizador de descanso automáticamente (90s o el valor configurado)
     startTimer(sesionEnCurso.descansoPorDefecto || 90);
   };
 
@@ -441,9 +501,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     setSesionEnCurso((prev) => {
       if (!prev) return null;
       const copy = { ...prev };
-      const ej = copy.ejercicios[ejIndex];
-      ej.guardado = false;
-      ej.omitido = true;
+      const e = copy.ejercicios[ejIndex];
+      e.guardado = false;
+      e.omitido = true;
       return copy;
     });
   };
@@ -453,14 +513,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     setSesionEnCurso((prev) => {
       if (!prev) return null;
       const copy = { ...prev };
-      const ej = copy.ejercicios[ejIndex];
-      ej.guardado = false;
-      ej.omitido = false;
+      const e = copy.ejercicios[ejIndex];
+      e.guardado = false;
+      e.omitido = false;
       return copy;
     });
   };
 
-  // Agregar 2 series de calentamiento al ejercicio
   const handleAgregarCalentamiento = (ejIndex: number) => {
     if (!sesionEnCurso) return;
     setSesionEnCurso((prev) => {
@@ -468,9 +527,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       const copy = { ...prev };
       const ej = copy.ejercicios[ejIndex];
 
-      // Tomar el peso efectivo más alto del ejercicio para calcular el calentamiento
       const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
-      const maxPeso = efectivas.length > 0 ? Math.max(...efectivas.map((s) => s.peso)) : ej.series[0]?.peso || 10;
+      const maxPeso =
+        efectivas.length > 0 ? Math.max(...efectivas.map((s) => s.peso)) : ej.series[0]?.peso || 10;
 
       const sug = obtenerSugerenciaCalentamiento(maxPeso, ej.tipo_carga);
 
@@ -488,7 +547,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         completada: false,
       };
 
-      // Insertar al inicio de las series
       ej.series = [s1, s2, ...ej.series];
       ej.mostrarCalentamiento = true;
       return copy;
@@ -510,7 +568,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (field === 'reps') s.reps = Math.max(1, Number(val) || 0);
       if (field === 'completada') {
         s.completada = Boolean(val);
-        // Si completa la serie, activar un descanso corto sugerido
         if (s.completada) {
           startTimer(sesionEnCurso.descansoPorDefecto || 90);
         }
@@ -551,21 +608,19 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
   // ----------------------------------------------------------------------
   // FINALIZAR ENTRENAMIENTO COMPLETO
-  // Los ejercicios que NO haga se mantendrán igual en su historial previo.
   // ----------------------------------------------------------------------
   const handleFinalizarEntrenamiento = async () => {
     if (!sesionEnCurso) return;
 
-    // Filtrar solo los ejercicios que el usuario completó/guardó
     const ejerciciosRealizados = sesionEnCurso.ejercicios.filter(
-      (e) => e.guardado && e.series && e.series.length > 0
+      (e) => e.guardado && e.nombre.trim() !== '' && e.series && e.series.length > 0
     );
 
     const ejerciciosOmitidos = sesionEnCurso.ejercicios.filter((e) => !e.guardado);
 
     if (ejerciciosRealizados.length === 0) {
       alert(
-        'Aún no has guardado ningún ejercicio en este entrenamiento. Haz clic en "Guardar Ejercicio" en al menos uno para registrar tu sesión.'
+        'Aún no has guardado ningún ejercicio con nombre en este entrenamiento. Haz clic en "Guardar Ejercicio" en al menos uno para registrar tu sesión.'
       );
       return;
     }
@@ -573,8 +628,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     if (ejerciciosOmitidos.length > 0) {
       const confirmacion = confirm(
         `Has guardado ${ejerciciosRealizados.length} de ${sesionEnCurso.ejercicios.length} ejercicios.\n\n` +
-          `Los ejercicios no realizados (${ejerciciosOmitidos.map((e) => e.nombre).join(', ')}) ` +
-          `mantendrán su historial previo intacto sin afectarse.\n\n` +
+          `Los ejercicios no realizados mantendrán sus marcas anteriores intactas en tu historial.\n\n` +
           `¿Deseas finalizar y guardar el entrenamiento de hoy?`
       );
       if (!confirmacion) return;
@@ -586,14 +640,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       fecha: sesionEnCurso.fecha,
       notas: sesionEnCurso.notas.trim(),
       ejercicios: ejerciciosRealizados.map((e) => ({
-        nombre: e.nombre,
+        nombre: e.nombre.trim(),
         tipo_carga: e.tipo_carga,
         series: e.series.map((s) => ({
           peso: s.peso,
           reps: s.reps,
           tipo: s.tipo || 'efectiva',
         })),
-        objetivo: e.objetivo,
       })),
     };
 
@@ -611,14 +664,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           if (!error && data) {
             savedItem = data as GymEntrenamiento;
           } else if (error) {
-            console.warn('Aviso: Supabase devolvió error al insertar, guardando en respaldo local:', error);
+            console.warn('Aviso: error insertando en Supabase, guardando en respaldo local:', error);
           }
         } catch (supaErr) {
-          console.warn('Aviso: Error de red con Supabase, respaldando localmente:', supaErr);
+          console.warn('Aviso: error de red con Supabase, respaldando localmente:', supaErr);
         }
       }
 
-      // Si no hay Supabase o falló la inserción remota, guardar con ID local para nunca perder datos
       if (!savedItem) {
         savedItem = {
           ...nuevoRegistro,
@@ -627,26 +679,20 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         };
       }
 
-      // 1. Agregar a entrenamientos
+      // 1. Agregar a la lista de entrenamientos
       setEntrenamientos((prev) => [savedItem!, ...prev]);
 
-      // 2. Calcular el siguiente entrenamiento en el ciclo de 3
-      const proxima = getSiguienteRutina(sesionEnCurso.rutinaNombre);
-      localStorage.setItem(`finanzshield_gym_proxima_rutina_${user.id}`, proxima.id);
-      setTabRutinaActiva(proxima.id);
-
-      // 3. Limpiar sesión activa
+      // 2. Limpiar sesión activa
       setSesionEnCurso(null);
       localStorage.removeItem(`finanzshield_gym_active_session_${user.id}`);
       setIsModoEntrenamientoOpen(false);
       stopTimer();
 
-      // 4. Mostrar modal de éxito y transición al siguiente entrenamiento
+      // 3. Mostrar confirmación de finalización exitosa (completamente libre lo que haga después)
       setResumenFinalizado({
         rutinaTerminada: sesionEnCurso.rutinaNombre,
         ejerciciosGuardados: ejerciciosRealizados.length,
         ejerciciosOmitidos: ejerciciosOmitidos.length,
-        siguienteRutina: proxima,
       });
     } catch (err: any) {
       console.error('Error finalizando entrenamiento:', err);
@@ -666,45 +712,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     }
   };
 
-  // Récords Personales calculados dinámicamente
-  const recordsPersonales = useMemo(() => {
-    const map = new Map<
-      string,
-      { maxPeso: number; maxReps: number; tipoCarga: TipoCarga; objetivo?: string }
-    >();
-
-    entrenamientos.forEach((ent) => {
-      ent.ejercicios.forEach((ej) => {
-        const key = ej.nombre.trim().toLowerCase();
-        const existing = map.get(key) || {
-          maxPeso: 0,
-          maxReps: 0,
-          tipoCarga: ej.tipo_carga,
-          objetivo: ej.objetivo,
-        };
-
-        const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
-        const pool = efectivas.length > 0 ? efectivas : ej.series;
-
-        pool.forEach((s) => {
-          if (s.peso > existing.maxPeso) {
-            existing.maxPeso = s.peso;
-            existing.maxReps = s.reps;
-          } else if (s.peso === existing.maxPeso && s.reps > existing.maxReps) {
-            existing.maxReps = s.reps;
-          }
-        });
-
-        if (ej.objetivo) existing.objetivo = ej.objetivo;
-        existing.tipoCarga = ej.tipo_carga;
-        map.set(key, existing);
-      });
-    });
-
-    return map;
-  }, [entrenamientos]);
-
-  // Contar progreso de la sesión activa
   const progresoSesion = useMemo(() => {
     if (!sesionEnCurso) return { total: 0, guardados: 0, porcentaje: 0 };
     const total = sesionEnCurso.ejercicios.length;
@@ -716,7 +723,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   return (
     <div className="space-y-6">
       {/* ====================================================================== */}
-      {/* 1. CABECERA PRINCIPAL DEL MÓDULO DE GYM */}
+      {/* 1. CABECERA PRINCIPAL */}
       {/* ====================================================================== */}
       <div className="p-6 rounded-3xl bg-gradient-to-r from-[#171D30] via-[#1A2238] to-[#121726] border border-indigo-500/30 shadow-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="space-y-2">
@@ -725,13 +732,10 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               <Dumbbell className="w-5 h-5 text-indigo-400" />
             </div>
             <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-              Control de Sobrecarga Progresiva
+              Control de Progresión Personal
             </span>
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              {entrenamientos.length} Sesiones
-            </span>
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              {recordsPersonales.size} Récords Monitoreados
+              {entrenamientos.length} Sesiones Registradas
             </span>
             {isLoading ? (
               <span className="text-[10px] text-indigo-400 font-semibold animate-pulse">
@@ -750,83 +754,71 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Bitácora de Fuerza & Progresión
+            Bitácora de Entrenamiento
           </h2>
           <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-            Agrupado en tus <strong>3 entrenamientos principales</strong>. Guarda ejercicio por ejercicio
-            durante tu rutina, toma descansos cronometrados y mantén tus marcas intactas si omites algún ejercicio.
+            Tus 3 entrenamientos personalizados. Cada día que entrenes, la app cargará automáticamente
+            los ejercicios y pesos que hiciste la última vez para que continúes tu progreso exacto.
           </p>
         </div>
 
-        {/* Acciones de Cabecera: Próximo Entrenamiento y Cronómetro */}
-        <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-          {/* Botón de Próximo Entrenamiento Sugerido */}
-          <button
-            onClick={() => handleIniciarEntrenamiento(siguienteRutinaSugerida.id)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 hover:from-indigo-500 hover:to-emerald-400 text-white font-extrabold text-xs shadow-xl shadow-indigo-600/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Iniciar {siguienteRutinaSugerida.nombre}</span>
-          </button>
-
-          {/* Temporizador de Descanso Rápido en Cabecera */}
-          <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 p-1 rounded-2xl text-xs">
-            <div className="flex items-center gap-1 px-2.5 py-1.5 text-slate-300 font-semibold">
-              <Clock className="w-3.5 h-3.5 text-indigo-400" />
-              <span>
-                {timerSeconds !== null
-                  ? `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60)
-                      .toString()
-                      .padStart(2, '0')}`
-                  : 'Descanso'}
-              </span>
-            </div>
-
-            {timerSeconds !== null ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={pauseOrResumeTimer}
-                  className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30"
-                  title={isTimerRunning ? 'Pausar' : 'Reanudar'}
-                >
-                  {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                </button>
-                <button
-                  onClick={stopTimer}
-                  className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30"
-                  title="Detener temporizador"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => startTimer(60)}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold"
-                >
-                  60s
-                </button>
-                <button
-                  onClick={() => startTimer(90)}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold"
-                >
-                  90s
-                </button>
-                <button
-                  onClick={() => startTimer(120)}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold"
-                >
-                  2m
-                </button>
-              </div>
-            )}
+        {/* Temporizador de Descanso Rápido en Cabecera */}
+        <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 p-1 rounded-2xl text-xs flex-shrink-0">
+          <div className="flex items-center gap-1 px-2.5 py-1.5 text-slate-300 font-semibold">
+            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <span>
+              {timerSeconds !== null
+                ? `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60)
+                    .toString()
+                    .padStart(2, '0')}`
+                : 'Descanso'}
+            </span>
           </div>
+
+          {timerSeconds !== null ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={pauseOrResumeTimer}
+                className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 cursor-pointer"
+                title={isTimerRunning ? 'Pausar' : 'Reanudar'}
+              >
+                {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              </button>
+              <button
+                onClick={stopTimer}
+                className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 cursor-pointer"
+                title="Detener temporizador"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => startTimer(60)}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold cursor-pointer"
+              >
+                60s
+              </button>
+              <button
+                onClick={() => startTimer(90)}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold cursor-pointer"
+              >
+                90s
+              </button>
+              <button
+                onClick={() => startTimer(120)}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold cursor-pointer"
+              >
+                2m
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ====================================================================== */}
-      {/* 2. ALERTA DE SESIÓN EN CURSO (SI SE RECARGÓ LA PÁGINA O ESTÁ ACTIVA) */}
+      {/* 2. ALERTA DE SESIÓN EN CURSO (SI SE RECARGÓ LA PÁGINA) */}
       {/* ====================================================================== */}
       {sesionEnCurso && !isModoEntrenamientoOpen && (
         <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-indigo-500/15 to-emerald-500/15 border border-amber-500/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
@@ -840,8 +832,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   Entrenamiento en Curso
                 </span>
                 <span className="text-xs text-slate-300">
-                  {progresoSesion.guardados} de {progresoSesion.total} ejercicios guardados (
-                  {progresoSesion.porcentaje}%)
+                  {progresoSesion.guardados} de {progresoSesion.total} ejercicios guardados
                 </span>
               </div>
               <h4 className="text-sm font-black text-white mt-0.5">
@@ -869,84 +860,92 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       )}
 
       {/* ====================================================================== */}
-      {/* 3. TUS 3 ENTRENAMIENTOS PRINCIPALES (AGRUPADOS EN CICLO) */}
+      {/* 3. TUS 3 ENTRENAMIENTOS: PECHO, ESPALDA, PIERNA */}
       {/* ====================================================================== */}
-      <section aria-label="Tus 3 Entrenamientos">
+      <section aria-label="Selección de Rutina">
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
-            <Flame className="w-4 h-4 text-amber-400" />
+            <Dumbbell className="w-4 h-4 text-indigo-400" />
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              Tus 3 Entrenamientos Principales (Ciclo Rotativo)
+              Tus 3 Entrenamientos — Elige cuál hacer hoy
             </h3>
           </div>
           <span className="text-[11px] text-slate-400">
-            Siguiente sugerido:{' '}
-            <strong className="text-emerald-400 font-bold">
-              {siguienteRutinaSugerida.nombre}
-            </strong>
+            Libre elección • Basado en tus marcas previas
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {rutinasCiclo.map((rutina) => {
-            const plantilla = RUTINAS_PREDEFINIDAS.find((r) => r.id === rutina.id);
-            const numEjercicios = rutina.ultimaSesion
-              ? rutina.ultimaSesion.ejercicios.length
-              : plantilla?.ejercicios.length || 4;
+          {estadoRutinas.map((r) => {
+            const tieneHistorial = r.ejerciciosEnHistorial.length > 0;
 
             return (
               <div
-                key={rutina.id}
-                onClick={() => handleIniciarEntrenamiento(rutina.id)}
-                className={`p-5 rounded-2xl bg-[#161F30] border transition-all duration-200 hover:scale-[1.02] cursor-pointer group flex flex-col justify-between relative overflow-hidden ${
-                  rutina.esLaSiguiente
-                    ? 'border-emerald-500/60 shadow-xl shadow-emerald-500/10 ring-1 ring-emerald-500/30'
-                    : 'border-slate-800 hover:border-indigo-500/50 shadow-xl'
-                }`}
+                key={r.id}
+                onClick={() => handleIniciarEntrenamiento(r.id)}
+                className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 hover:border-indigo-500/60 shadow-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer group flex flex-col justify-between"
               >
-                {/* Glow decorativo si es la siguiente */}
-                {rutina.esLaSiguiente && (
-                  <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-gradient-to-l from-emerald-500 to-indigo-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-200" />
-                    <span>Siguiente en tu ciclo</span>
-                  </div>
-                )}
-
                 <div>
                   <div className="flex items-center justify-between text-xs mb-2">
                     <span
                       className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border"
                       style={{
-                        backgroundColor: `${rutina.color}15`,
-                        color: rutina.color,
-                        borderColor: `${rutina.color}30`,
+                        backgroundColor: `${r.color}15`,
+                        color: r.color,
+                        borderColor: `${r.color}30`,
                       }}
                     >
-                      Día {rutina.orden} • {numEjercicios} ejercicios
+                      {tieneHistorial
+                        ? `${r.ejerciciosEnHistorial.length} ejercicios en tu lista`
+                        : 'Lista por crear'}
+                    </span>
+                    <span className="text-slate-500 text-[11px]">
+                      {r.ultimaSesion
+                        ? `Último: ${formatearFechaRelativa(r.ultimaSesion.fecha)}`
+                        : 'Sin registrar aún'}
                     </span>
                   </div>
 
                   <h4 className="text-base font-black text-white group-hover:text-indigo-300 transition-colors">
-                    {rutina.nombre}
+                    {r.nombre}
                   </h4>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                    {plantilla?.descripcion || 'Entrenamiento de fuerza enfocado'}
-                  </p>
+                  <p className="text-xs text-slate-400 mt-1">{r.subtitulo}</p>
 
-                  {/* Estado de la última sesión */}
-                  <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500">Última vez:</span>
-                    <strong className="text-slate-300">
-                      {rutina.ultimaSesion
-                        ? formatearFechaRelativa(rutina.ultimaSesion.fecha)
-                        : 'Aún sin registrar'}
-                    </strong>
+                  {/* Vista previa de los ejercicios reales del usuario */}
+                  <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-1.5">
+                    {tieneHistorial ? (
+                      <>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                          Tus ejercicios registrados:
+                        </span>
+                        {r.ejerciciosEnHistorial.map((ej, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-[11px] text-slate-300"
+                          >
+                            <span className="truncate pr-2 font-medium">• {ej.nombre}</span>
+                            <span className="text-slate-500 text-[10px] font-semibold">
+                              {ej.tipo_carga === 'barras'
+                                ? 'Barras'
+                                : ej.tipo_carga === 'kg'
+                                ? 'Kg'
+                                : 'Corp.'}
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-slate-900/60 border border-dashed border-slate-800 text-[11px] text-slate-400 leading-relaxed">
+                        Aún no tienes ejercicios guardados para este día. Inicia hoy para armar tu
+                        lista personalizada de ejercicios y pesos.
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-indigo-400 group-hover:text-indigo-300 flex items-center gap-1">
-                    <span>Entrenar Hoy</span>
+                  <span className="text-xs font-black text-indigo-400 group-hover:text-indigo-300 flex items-center gap-1">
+                    <span>{tieneHistorial ? 'Iniciar este Entrenamiento' : 'Crear y Comenzar'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-semibold">
@@ -960,121 +959,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       </section>
 
       {/* ====================================================================== */}
-      {/* 4. ASISTENTE INTELIGENTE DE SOBRECARGA PROGRESIVA PARA HOY */}
-      {/* ====================================================================== */}
-      <section aria-label="Recomendaciones de Sobrecarga Progresiva">
-        <div className="p-5 sm:p-6 rounded-2xl bg-[#151D2E] border border-slate-800 shadow-xl space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
-                <TrendingUp className="w-4 h-4 text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white tracking-wide">
-                  Recomendaciones de Sobrecarga para Hoy
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Calculadas dinámicamente según tus marcas anteriores
-                </p>
-              </div>
-            </div>
-
-            {/* Selector de las 3 Rutinas */}
-            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
-              {CICLO_3_RUTINAS.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setTabRutinaActiva(r.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    tabRutinaActiva === r.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {r.nombre}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Grid de ejercicios con sus recomendaciones */}
-          {(() => {
-            const ejerciciosActuales = obtenerEjerciciosParaRutina(tabRutinaActiva, entrenamientos);
-
-            return (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {ejerciciosActuales.map((ej, idx) => {
-                    const rec = calcularRecomendacionSobrecarga(
-                      ej.nombre,
-                      ej.tipo_carga,
-                      entrenamientos
-                    );
-
-                    return (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between gap-3"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="font-extrabold text-sm text-white block">
-                              {ej.nombre}
-                            </span>
-                            <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <span>Último registro:</span>
-                              <strong
-                                className={
-                                  rec.tieneHistorial ? 'text-indigo-300' : 'text-slate-500 font-normal'
-                                }
-                              >
-                                {rec.resumenUltimo}
-                              </strong>
-                            </span>
-                          </div>
-
-                          <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0">
-                            {ej.tipo_carga === 'barras'
-                              ? 'Barras'
-                              : ej.tipo_carga === 'kg'
-                              ? 'KG'
-                              : 'Corporal'}
-                          </span>
-                        </div>
-
-                        {/* Recomendación dinámica */}
-                        <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs">
-                          <div className="text-[11px] font-medium text-slate-200 leading-relaxed">
-                            {rec.recomendacionTexto}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
-                          <span className="text-slate-500">Próximo objetivo:</span>
-                          <span className="font-bold text-emerald-400">{rec.siguienteMeta}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <button
-                    onClick={() => handleIniciarEntrenamiento(tabRutinaActiva)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Iniciar este Entrenamiento en Modo En Vivo</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      </section>
-
-      {/* ====================================================================== */}
-      {/* 5. HISTORIAL DE SESIONES REGISTRADAS */}
+      {/* 4. HISTORIAL DE SESIONES REGISTRADAS */}
       {/* ====================================================================== */}
       <section aria-label="Historial de Entrenamientos">
         <div className="p-5 sm:p-6 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl space-y-4">
@@ -1089,27 +974,19 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
           </div>
 
           {entrenamientos.length === 0 ? (
-            <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-3">
+            <div className="text-center py-10 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto">
                 <Dumbbell className="w-6 h-6 text-indigo-400" />
               </div>
               <div className="space-y-1 max-w-md mx-auto">
                 <p className="text-base font-bold text-white">
-                  Bitácora limpia y lista para tus 3 entrenamientos
+                  Bitácora limpia y lista para tus entrenamientos
                 </p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Inicia tu Día de Pecho, Día de Espalda o Día de Pierna. Puedes ir guardando
-                  ejercicio por ejercicio en vivo, descansar con el cronómetro integrado y tus
-                  marcas quedarán guardadas automáticamente.
+                  Elige cualquiera de las 3 opciones arriba para comenzar. Puedes crear tu propia
+                  lista de ejercicios, guardar ejercicio por ejercicio y tomar tus descansos con el
+                  cronómetro integrado.
                 </p>
-              </div>
-              <div className="pt-2 flex justify-center gap-2">
-                <button
-                  onClick={() => handleIniciarEntrenamiento(siguienteRutinaSugerida.id)}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
-                >
-                  Iniciar {siguienteRutinaSugerida.nombre}
-                </button>
               </div>
             </div>
           ) : (
@@ -1122,13 +999,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   {/* Encabezado de la sesión */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
                           {ent.fecha}
                         </span>
                         <h4 className="text-base font-black text-white">{ent.rutina_nombre}</h4>
                         <span className="text-[11px] text-slate-400">
-                          • {ent.ejercicios.length} ejercicios registrados
+                          • {ent.ejercicios.length} ejercicios guardados
                         </span>
                       </div>
                       {ent.notas && (
@@ -1139,7 +1016,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                     <div className="flex items-center gap-2 self-end sm:self-auto">
                       <button
                         onClick={() => handleDeleteEntrenamiento(ent.id)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
                         title="Eliminar registro"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1161,7 +1038,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                               ? 'Barras'
                               : ej.tipo_carga === 'kg'
                               ? 'Kg'
-                              : 'Peso Corp.'}
+                              : 'Corp.'}
                           </span>
                         </div>
 
@@ -1185,15 +1062,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                             </div>
                           ))}
                         </div>
-
-                        {ej.objetivo && (
-                          <p
-                            className="text-[10px] text-slate-400 pt-1 border-t border-slate-700/40 truncate"
-                            title={ej.objetivo}
-                          >
-                            Objetivo: {ej.objetivo}
-                          </p>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1205,7 +1073,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       </section>
 
       {/* ====================================================================== */}
-      {/* 6. MODAL / PANTALLA DE MODO ENTRENAMIENTO ACTIVO */}
+      {/* 5. MODAL / PANTALLA DE MODO ENTRENAMIENTO EN VIVO */}
       {/* ====================================================================== */}
       {isModoEntrenamientoOpen && sesionEnCurso && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -1231,23 +1099,28 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 </div>
               </div>
 
-              {/* Botón de Cerrar (mantiene el borrador guardado en localStorage) */}
+              {/* Botones de acción rápida en cabecera */}
               <div className="flex items-center gap-2 self-end sm:self-auto">
-                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 hidden sm:flex">
-                  <Save className="w-3 h-3" />
-                  <span>Auto-guardado activo</span>
-                </span>
+                <button
+                  type="button"
+                  onClick={handleAddEjercicio}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Agregar Ejercicio</span>
+                </button>
+
                 <button
                   onClick={() => setIsModoEntrenamientoOpen(false)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
-                  title="Cerrar ventana (puedes continuar en cualquier momento, nada se pierde)"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  title="Cerrar ventana (se mantiene guardado en tu dispositivo)"
                 >
                   Minimizar
                 </button>
               </div>
             </div>
 
-            {/* Barra Fija del Temporizador de Descanso en Modo Entrenamiento */}
+            {/* Barra Fija del Temporizador de Descanso */}
             <div className="px-4 sm:px-6 py-3 bg-[#172033] border-b border-indigo-500/20 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
@@ -1278,7 +1151,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   </div>
                 </div>
 
-                {/* Controles de Play / Pausa / Detener */}
                 <div className="flex items-center gap-1">
                   {timerSeconds !== null && timerSeconds > 0 && (
                     <>
@@ -1295,15 +1167,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                       </button>
                       <button
                         onClick={() => adjustTimer(15)}
-                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
-                        title="Sumar 15 segundos"
+                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                       >
                         +15s
                       </button>
                       <button
                         onClick={() => adjustTimer(-15)}
-                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
-                        title="Restar 15 segundos"
+                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
                       >
                         -15s
                       </button>
@@ -1322,7 +1192,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 </div>
               </div>
 
-              {/* Botones de Presets Rápidos de Descanso */}
+              {/* Presets Rápidos */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-[11px] text-slate-400 font-semibold mr-1">Iniciar:</span>
                 {[
@@ -1345,10 +1215,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   </button>
                 ))}
 
-                {/* Toggle de sonido */}
                 <button
                   onClick={() => setTimerSonidoHabilitado((prev) => !prev)}
-                  className={`p-1.5 rounded-xl text-xs ml-1 ${
+                  className={`p-1.5 rounded-xl text-xs ml-1 cursor-pointer ${
                     timerSonidoHabilitado
                       ? 'bg-emerald-500/20 text-emerald-300'
                       : 'bg-slate-800 text-slate-500'
@@ -1370,7 +1239,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 <span>🔔 {timerMensajeAlerta}</span>
                 <button
                   onClick={() => setTimerMensajeAlerta(null)}
-                  className="text-emerald-400 hover:text-white"
+                  className="text-emerald-400 hover:text-white cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1392,341 +1261,386 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               <span className="text-indigo-400 font-bold">{progresoSesion.porcentaje}%</span>
             </div>
 
-            {/* Lista de Ejercicios en Modo Entrenamiento (Scrollable) */}
+            {/* Lista de Ejercicios en Modo Entrenamiento */}
             <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
-              {sesionEnCurso.ejercicios.map((ej, ejIdx) => {
-                const rec = calcularRecomendacionSobrecarga(
-                  ej.nombre,
-                  ej.tipo_carga,
-                  entrenamientos
-                );
-
-                const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
-                const maxPesoEfectivo =
-                  efectivas.length > 0
-                    ? Math.max(...efectivas.map((s) => s.peso))
-                    : ej.series[0]?.peso || 10;
-
-                const sugCalentamiento = obtenerSugerenciaCalentamiento(
-                  maxPesoEfectivo,
-                  ej.tipo_carga
-                );
-
-                return (
-                  <div
-                    key={ej.id || ejIdx}
-                    className={`p-5 rounded-2xl border transition-all duration-200 ${
-                      ej.guardado
-                        ? 'bg-[#152328] border-emerald-500/50 shadow-lg'
-                        : ej.omitido
-                        ? 'bg-slate-900/50 border-slate-800 opacity-60'
-                        : 'bg-slate-900/90 border-slate-700/80'
-                    }`}
+              {sesionEnCurso.ejercicios.length === 0 ? (
+                <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-3">
+                  <p className="text-base font-bold text-white">
+                    Aún no hay ejercicios en esta rutina
+                  </p>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Haz clic en el botón de abajo para agregar los ejercicios que harás hoy y comenzar
+                    a registrar tus pesos.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddEjercicio}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                   >
-                    {/* Cabecera del Ejercicio */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-base font-black text-white">{ej.nombre}</h4>
-                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                            {ej.tipo_carga === 'barras'
-                              ? 'Barras'
-                              : ej.tipo_carga === 'kg'
-                              ? 'KG'
-                              : 'Peso Corporal'}
-                          </span>
+                    + Agregar Primer Ejercicio
+                  </button>
+                </div>
+              ) : (
+                sesionEnCurso.ejercicios.map((ej, ejIdx) => {
+                  const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
+                  const maxPesoEfectivo =
+                    efectivas.length > 0
+                      ? Math.max(...efectivas.map((s) => s.peso))
+                      : ej.series[0]?.peso || 10;
 
-                          {/* Estado del Ejercicio */}
+                  const sugCalentamiento = obtenerSugerenciaCalentamiento(
+                    maxPesoEfectivo,
+                    ej.tipo_carga
+                  );
+
+                  return (
+                    <div
+                      key={ej.id || ejIdx}
+                      className={`p-5 rounded-2xl border transition-all duration-200 ${
+                        ej.guardado
+                          ? 'bg-[#152328] border-emerald-500/50 shadow-lg'
+                          : ej.omitido
+                          ? 'bg-slate-900/50 border-slate-800 opacity-60'
+                          : 'bg-slate-900/90 border-slate-700/80'
+                      }`}
+                    >
+                      {/* Cabecera del Ejercicio (Nombre y Carga editables) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="text"
+                              value={ej.nombre}
+                              onChange={(e) => handleUpdateEjercicioNombre(ejIdx, e.target.value)}
+                              placeholder="Nombre del ejercicio (ej. Press banca, Dominadas...)"
+                              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-black focus:outline-none focus:border-indigo-500 flex-1 min-w-[200px]"
+                            />
+
+                            <select
+                              value={ej.tipo_carga}
+                              onChange={(e) =>
+                                handleUpdateEjercicioTipoCarga(ejIdx, e.target.value as TipoCarga)
+                              }
+                              className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-300 text-xs font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+                            >
+                              <option value="kg">Kilos (KG)</option>
+                              <option value="barras">Barras (Máquina)</option>
+                              <option value="peso_corporal">Peso Corporal</option>
+                            </select>
+
+                            {/* Estado del Ejercicio */}
+                            {ej.guardado ? (
+                              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>✓ Guardado hoy</span>
+                              </span>
+                            ) : ej.omitido ? (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                                Omitido hoy
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                Pendiente
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Marca anterior de referencia */}
+                          {ej.marcaAnterior && (
+                            <p className="text-xs text-indigo-300 font-semibold flex items-center gap-1">
+                              <span>Marca anterior:</span>
+                              <strong className="text-white">{ej.marcaAnterior}</strong>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Botones de Acción del Ejercicio */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
                           {ej.guardado ? (
-                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span>✓ Guardado en esta sesión</span>
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleReactivarEjercicio(ejIdx)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                            >
+                              Editar nuevamente
+                            </button>
                           ) : ej.omitido ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                              Omitido hoy (se mantiene historial previo)
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleReactivarEjercicio(ejIdx)}
+                              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"
+                            >
+                              Realizar este ejercicio
+                            </button>
                           ) : (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                              Pendiente
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Meta calculada de Sobrecarga Progresiva */}
-                        <p className="text-xs text-slate-300 mt-1">
-                          {rec.tieneHistorial ? (
                             <>
-                              Última vez: <strong>{rec.resumenUltimo}</strong>. {rec.recomendacionTexto}
+                              <button
+                                type="button"
+                                onClick={() => handleOmitirEjercicio(ejIdx)}
+                                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold cursor-pointer"
+                                title="Si hoy no harás este ejercicio, sus marcas anteriores se mantendrán intactas"
+                              >
+                                No haré este hoy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleGuardarEjercicio(ejIdx)}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
+                              >
+                                <Check className="w-4 h-4 stroke-[3]" />
+                                <span>Guardar Ejercicio</span>
+                              </button>
                             </>
-                          ) : (
-                            <>Primer registro. Busca un peso para 8-10 reps limpias.</>
                           )}
-                        </p>
-                      </div>
 
-                      {/* Botones de Acción del Ejercicio */}
-                      <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-                        {ej.guardado ? (
                           <button
                             type="button"
-                            onClick={() => handleReactivarEjercicio(ejIdx)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                            onClick={() => handleRemoveEjercicio(ejIdx)}
+                            className="p-2 rounded-xl bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                            title="Eliminar este ejercicio de la rutina"
                           >
-                            Editar nuevamente
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                        ) : ej.omitido ? (
-                          <button
-                            type="button"
-                            onClick={() => handleReactivarEjercicio(ejIdx)}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
-                          >
-                            Realizar este ejercicio
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleOmitirEjercicio(ejIdx)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold"
-                              title="Si hoy no harás este ejercicio, sus marcas anteriores se mantendrán intactas"
-                            >
-                              No haré este hoy
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleGuardarEjercicio(ejIdx)}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
-                            >
-                              <Check className="w-4 h-4 stroke-[3]" />
-                              <span>Guardar Ejercicio</span>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Sugerencia de Calentamiento / Activación (Normalmente 2 series) */}
-                    {!ej.omitido && (
-                      <div className="mt-3 p-3 rounded-xl bg-[#131B2A] border border-amber-500/20 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                            <Flame className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Sugerencia de Activación Muscular (2 Series)</span>
-                          </span>
-                          {!ej.series.some((s) => s.tipo === 'calentamiento') && (
-                            <button
-                              type="button"
-                              onClick={() => handleAgregarCalentamiento(ejIdx)}
-                              className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>Agregar las 2 series de calentamiento</span>
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300">
-                          <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                            <strong>Calentamiento 1:</strong> {sugCalentamiento.serie1.descripcion}
-                          </div>
-                          <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                            <strong>Calentamiento 2:</strong> {sugCalentamiento.serie2.descripcion}
-                          </div>
                         </div>
                       </div>
-                    )}
 
-                    {/* Tabla de Series del Ejercicio */}
-                    {!ej.omitido && (
-                      <div className="mt-4 space-y-2">
-                        <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
-                          <span className="col-span-3 sm:col-span-2">Serie</span>
-                          <span className="col-span-4 sm:col-span-4">
-                            {ej.tipo_carga === 'barras'
-                              ? 'Barras'
-                              : ej.tipo_carga === 'kg'
-                              ? 'Peso (KG)'
-                              : 'Carga'}
-                          </span>
-                          <span className="col-span-3 sm:col-span-4">Reps</span>
-                          <span className="col-span-2 text-right">Completar</span>
-                        </div>
+                      {/* Sugerencia Opcional de Calentamiento / Activación (2 series) */}
+                      {!ej.omitido && (
+                        <div className="mt-3 p-3 rounded-xl bg-[#131B2A] border border-amber-500/20 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                              <Flame className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Sugerencia de Activación (2 Series)</span>
+                            </span>
+                            {!ej.series.some((s) => s.tipo === 'calentamiento') && (
+                              <button
+                                type="button"
+                                onClick={() => handleAgregarCalentamiento(ejIdx)}
+                                className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Agregar las 2 series de calentamiento</span>
+                              </button>
+                            )}
+                          </div>
 
-                        {ej.series.map((s, sIdx) => {
-                          const esCalentamiento = s.tipo === 'calentamiento';
-
-                          return (
-                            <div
-                              key={sIdx}
-                              className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl border transition-all ${
-                                s.completada
-                                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
-                                  : esCalentamiento
-                                  ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
-                                  : 'bg-slate-800/50 border-slate-700/60'
-                              }`}
-                            >
-                              {/* Nombre de la serie */}
-                              <div className="col-span-3 sm:col-span-2 flex items-center gap-1 text-xs font-bold pl-1">
-                                {esCalentamiento ? (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold flex items-center gap-0.5">
-                                    <Flame className="w-2.5 h-2.5 text-amber-400" />
-                                    <span>Cal.{sIdx + 1}</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-300">#{sIdx + 1}</span>
-                                )}
-                              </div>
-
-                              {/* Peso o Barras con botones rápidos +/- */}
-                              <div className="col-span-4 sm:col-span-4 flex items-center gap-1">
-                                {ej.tipo_carga !== 'peso_corporal' ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateSerieValor(
-                                          ejIdx,
-                                          sIdx,
-                                          'peso',
-                                          Math.max(0, s.peso - (ej.tipo_carga === 'barras' ? 1 : 2.5))
-                                        )
-                                      }
-                                      className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0"
-                                    >
-                                      -
-                                    </button>
-                                    <input
-                                      type="number"
-                                      step={ej.tipo_carga === 'barras' ? '1' : '0.5'}
-                                      min="0"
-                                      value={s.peso}
-                                      onChange={(e) =>
-                                        handleUpdateSerieValor(
-                                          ejIdx,
-                                          sIdx,
-                                          'peso',
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateSerieValor(
-                                          ejIdx,
-                                          sIdx,
-                                          'peso',
-                                          s.peso + (ej.tipo_carga === 'barras' ? 1 : 2.5)
-                                        )
-                                      }
-                                      className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0"
-                                    >
-                                      +
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-slate-400 pl-1 font-semibold">
-                                    Corporal
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Repeticiones con botones rápidos +/- */}
-                              <div className="col-span-3 sm:col-span-4 flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSerieValor(
-                                      ejIdx,
-                                      sIdx,
-                                      'reps',
-                                      Math.max(1, s.reps - 1)
-                                    )
-                                  }
-                                  className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0"
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={s.reps}
-                                  onChange={(e) =>
-                                    handleUpdateSerieValor(
-                                      ejIdx,
-                                      sIdx,
-                                      'reps',
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSerieValor(
-                                      ejIdx,
-                                      sIdx,
-                                      'reps',
-                                      s.reps + 1
-                                    )
-                                  }
-                                  className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0"
-                                >
-                                  +
-                                </button>
-                              </div>
-
-                              {/* Botón de Check Serie Completada / Quitar Serie */}
-                              <div className="col-span-2 flex items-center justify-end gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSerieValor(
-                                      ejIdx,
-                                      sIdx,
-                                      'completada',
-                                      !s.completada
-                                    )
-                                  }
-                                  className={`p-1.5 rounded-lg transition-all ${
-                                    s.completada
-                                      ? 'bg-emerald-500 text-slate-950 font-bold'
-                                      : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                                  }`}
-                                  title="Marcar serie completada y tomar descanso"
-                                >
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSerie(ejIdx, sIdx)}
-                                  className="p-1 rounded text-slate-500 hover:text-red-400"
-                                  title="Eliminar serie"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300">
+                            <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                              <strong>Serie 1:</strong> {sugCalentamiento.serie1.descripcion}
                             </div>
-                          );
-                        })}
+                            <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                              <strong>Serie 2:</strong> {sugCalentamiento.serie2.descripcion}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleAddSerie(ejIdx)}
-                          className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 pt-1 cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Agregar Serie a este ejercicio</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {/* Tabla de Series del Ejercicio */}
+                      {!ej.omitido && (
+                        <div className="mt-4 space-y-2">
+                          <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                            <span className="col-span-3 sm:col-span-2">Serie</span>
+                            <span className="col-span-4 sm:col-span-4">
+                              {ej.tipo_carga === 'barras'
+                                ? 'Barras'
+                                : ej.tipo_carga === 'kg'
+                                ? 'Peso (KG)'
+                                : 'Carga'}
+                            </span>
+                            <span className="col-span-3 sm:col-span-4">Reps</span>
+                            <span className="col-span-2 text-right">Completar</span>
+                          </div>
+
+                          {ej.series.map((s, sIdx) => {
+                            const esCalentamiento = s.tipo === 'calentamiento';
+
+                            return (
+                              <div
+                                key={sIdx}
+                                className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl border transition-all ${
+                                  s.completada
+                                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                                    : esCalentamiento
+                                    ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
+                                    : 'bg-slate-800/50 border-slate-700/60'
+                                }`}
+                              >
+                                {/* Nombre de la serie */}
+                                <div className="col-span-3 sm:col-span-2 flex items-center gap-1 text-xs font-bold pl-1">
+                                  {esCalentamiento ? (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold flex items-center gap-0.5">
+                                      <Flame className="w-2.5 h-2.5 text-amber-400" />
+                                      <span>Cal.{sIdx + 1}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300">#{sIdx + 1}</span>
+                                  )}
+                                </div>
+
+                                {/* Peso o Barras con botones rápidos +/- */}
+                                <div className="col-span-4 sm:col-span-4 flex items-center gap-1">
+                                  {ej.tipo_carga !== 'peso_corporal' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleUpdateSerieValor(
+                                            ejIdx,
+                                            sIdx,
+                                            'peso',
+                                            Math.max(
+                                              0,
+                                              s.peso - (ej.tipo_carga === 'barras' ? 1 : 2.5)
+                                            )
+                                          )
+                                        }
+                                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                      >
+                                        -
+                                      </button>
+                                      <input
+                                        type="number"
+                                        step={ej.tipo_carga === 'barras' ? '1' : '0.5'}
+                                        min="0"
+                                        value={s.peso}
+                                        onChange={(e) =>
+                                          handleUpdateSerieValor(
+                                            ejIdx,
+                                            sIdx,
+                                            'peso',
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleUpdateSerieValor(
+                                            ejIdx,
+                                            sIdx,
+                                            'peso',
+                                            s.peso + (ej.tipo_carga === 'barras' ? 1 : 2.5)
+                                          )
+                                        }
+                                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                      >
+                                        +
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-slate-400 pl-1 font-semibold">
+                                      Corporal
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Repeticiones con botones rápidos +/- */}
+                                <div className="col-span-3 sm:col-span-4 flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSerieValor(
+                                        ejIdx,
+                                        sIdx,
+                                        'reps',
+                                        Math.max(1, s.reps - 1)
+                                      )
+                                    }
+                                    className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={s.reps}
+                                    onChange={(e) =>
+                                      handleUpdateSerieValor(
+                                        ejIdx,
+                                        sIdx,
+                                        'reps',
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSerieValor(
+                                        ejIdx,
+                                        sIdx,
+                                        'reps',
+                                        s.reps + 1
+                                      )
+                                    }
+                                    className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+
+                                {/* Botón de Check Serie Completada / Quitar Serie */}
+                                <div className="col-span-2 flex items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSerieValor(
+                                        ejIdx,
+                                        sIdx,
+                                        'completada',
+                                        !s.completada
+                                      )
+                                    }
+                                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                      s.completada
+                                        ? 'bg-emerald-500 text-slate-950 font-bold'
+                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                    }`}
+                                    title="Marcar serie completada y tomar descanso"
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSerie(ejIdx, sIdx)}
+                                    className="p-1 rounded text-slate-500 hover:text-red-400 cursor-pointer"
+                                    title="Eliminar serie"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddSerie(ejIdx)}
+                            className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 pt-1 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Agregar Serie a este ejercicio</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Botón flotante para agregar más ejercicios a la sesión */}
+              <div className="pt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleAddEjercicio}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Agregar Otro Ejercicio a esta Rutina</span>
+                </button>
+              </div>
 
               {/* Notas de la Sesión */}
               <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
@@ -1738,7 +1652,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   onChange={(e) =>
                     setSesionEnCurso((prev) => (prev ? { ...prev, notas: e.target.value } : null))
                   }
-                  placeholder="Ej. Buena energía en espalda, bíceps bombeado..."
+                  placeholder="Ej. Buena energía, excelente bombeo..."
                   rows={2}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
@@ -1751,7 +1665,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 <button
                   type="button"
                   onClick={handleDescartarSesionActiva}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Descartar Sesión
                 </button>
@@ -1761,7 +1675,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 <button
                   type="button"
                   onClick={() => setIsModoEntrenamientoOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
                 >
                   Cerrar (Guarda Automático)
                 </button>
@@ -1781,7 +1695,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       )}
 
       {/* ====================================================================== */}
-      {/* 7. MODAL DE FINALIZACIÓN EXITOSA Y SIGUIENTE RUTINA SUGERIDA */}
+      {/* 6. MODAL DE FINALIZACIÓN EXITOSA */}
       {/* ====================================================================== */}
       {resumenFinalizado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
@@ -1794,7 +1708,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               <h3 className="text-xl font-black text-white">¡Entrenamiento Guardado con Éxito!</h3>
               <p className="text-xs text-slate-300">
                 Se registraron <strong>{resumenFinalizado.ejerciciosGuardados} ejercicios</strong> de{' '}
-                {resumenFinalizado.rutinaTerminada}.
+                {resumenFinalizado.rutinaTerminada} en tu historial y base de datos.
               </p>
               {resumenFinalizado.ejerciciosOmitidos > 0 && (
                 <p className="text-[11px] text-slate-400">
@@ -1804,18 +1718,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               )}
             </div>
 
-            {/* Siguiente Rutina Programada */}
-            <div className="p-4 rounded-2xl bg-slate-900/90 border border-indigo-500/30 text-left space-y-1.5">
-              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                Próximo en tu Ciclo de 3 Días
-              </span>
-              <h4 className="text-base font-black text-white">
-                {resumenFinalizado.siguienteRutina.nombre}
-              </h4>
-              <p className="text-xs text-slate-400">
-                Tus pesos y recomendaciones de sobrecarga ya están actualizados y preparados para tu
-                próxima sesión.
-              </p>
+            <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300">
+              La próxima vez que hagas este día, la app cargará automáticamente estos mismos ejercicios
+              y pesos para que continúes tu progreso.
             </div>
 
             <div className="pt-2 flex justify-center">
@@ -1823,7 +1728,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 onClick={() => setResumenFinalizado(null)}
                 className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/25 cursor-pointer"
               >
-                Entendido, Continuar
+                Continuar
               </button>
             </div>
           </div>
