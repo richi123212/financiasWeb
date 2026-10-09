@@ -145,7 +145,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         {
           nombre: '',
           tipo_carga: 'kg',
-          series: [{ peso: 0, reps: 10, tipo: 'efectiva' }],
+          series: [
+            { peso: 0, reps: 10, tipo: 'efectiva' },
+            { peso: 0, reps: 10, tipo: 'efectiva' },
+            { peso: 0, reps: 10, tipo: 'efectiva' },
+            { peso: 0, reps: 10, tipo: 'efectiva' },
+          ],
           objetivo: '',
         },
       ]);
@@ -159,7 +164,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         const rec = calcularRecomendacionSobrecarga(ej.nombre, ej.tipo_carga, entrenamientos);
 
         let seriesIniciales: SerieEjercicio[] = [];
-        const numSeries = ej.seriesSugeridas || 3;
+        const numSeries = ej.seriesSugeridas || 4;
 
         for (let i = 0; i < numSeries; i++) {
           seriesIniciales.push({
@@ -235,7 +240,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       {
         nombre: '',
         tipo_carga: 'kg',
-        series: [{ peso: 0, reps: 10, tipo: 'efectiva' }],
+        series: [
+          { peso: 0, reps: 10, tipo: 'efectiva' },
+          { peso: 0, reps: 10, tipo: 'efectiva' },
+          { peso: 0, reps: 10, tipo: 'efectiva' },
+          { peso: 0, reps: 10, tipo: 'efectiva' },
+        ],
         objetivo: '',
       },
     ]);

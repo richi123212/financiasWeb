@@ -3,11 +3,6 @@ import {
   Wallet,
   Dumbbell,
   ArrowRight,
-  TrendingUp,
-  ShieldCheck,
-  Flame,
-  CreditCard,
-  Target,
   LogOut,
   Sparkles,
 } from 'lucide-react';
@@ -27,7 +22,7 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-indigo-500/30">
       {/* Barra superior del Hub */}
-      <header className="max-w-6xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800/80">
+      <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-0.5 shadow-lg shadow-indigo-500/20">
             <div className="w-full h-full bg-[#0B0F19] rounded-[14px] flex items-center justify-center">
@@ -36,7 +31,7 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
           </div>
           <div>
             <h1 className="text-base font-extrabold text-white tracking-tight">Portal Personal</h1>
-            <p className="text-xs text-slate-400">Panel de Control Central de Richi</p>
+            <p className="text-xs text-slate-400">Hola, {user.nombre || 'Richi'}</p>
           </div>
         </div>
 
@@ -49,133 +44,76 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
         </button>
       </header>
 
-      {/* Contenido Central: Saludo y Tarjetas de Módulos */}
-      <main className="max-w-5xl w-full mx-auto my-auto py-10 space-y-8 animate-in fade-in duration-300">
-        <div className="text-center space-y-2 max-w-xl mx-auto">
-          <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 inline-block">
-            Bienvenido de vuelta, {user.nombre || 'Richi'}
-          </span>
+      {/* Contenido Central: Saludo y Tarjetas Simples de Finanzas o GYM */}
+      <main className="max-w-3xl w-full mx-auto my-auto py-12 space-y-8 animate-in fade-in duration-300">
+        <div className="text-center space-y-2">
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            ¿A qué apartado deseas entrar hoy?
+            ¿A dónde deseas entrar?
           </h2>
-          <p className="text-sm text-slate-400">
-            Elige la herramienta que vas a utilizar. Puedes alternar entre ambas en cualquier momento desde el menú superior.
+          <p className="text-xs text-slate-400">
+            Selecciona el apartado para continuar
           </p>
         </div>
 
-        {/* Tarjetas de Selección */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-          {/* Módulo 1: FINANZAS PERSONALES */}
+        {/* Tarjetas de Selección limpias: Finanzas o GYM */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+          {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#151D2E] to-[#101726] border border-slate-800 hover:border-emerald-500/60 p-7 shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer flex flex-col justify-between overflow-hidden"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#151D2E] to-[#101726] border border-slate-800 hover:border-emerald-500/60 p-8 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-6"
           >
-            {/* Resplandor decorativo */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-500" />
 
-            <div className="space-y-5 relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 group-hover:scale-110 transition-transform">
-                  <Wallet className="w-7 h-7 text-emerald-400" />
-                </div>
-                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  Activo & Cuadrado
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-black text-white group-hover:text-emerald-300 transition-colors">
-                  Finanzas & Liquidez
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Control exacto de tus tarjetas (Nu, DiDi), compras a MSI, radar de quincena de $6,750, deudas pendientes y liquidez real fija.
-                </p>
-              </div>
-
-              {/* Características clave */}
-              <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <CreditCard className="w-4 h-4 text-indigo-400" />
-                  <span>Semáforo de cortes y pagos de TDC</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Radar de Quincena ($6,750) tras deudas</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <TrendingUp className="w-4 h-4 text-teal-400" />
-                  <span>Dinero Actual Digital fijo sin descuentos raros</span>
-                </div>
-              </div>
+            <div className="w-20 h-20 rounded-3xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
+              <Wallet className="w-10 h-10 text-emerald-400" />
             </div>
 
-            <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform flex items-center gap-1.5">
-                <span>Entrar a Finanzas</span>
-                <ArrowRight className="w-4 h-4" />
-              </span>
-              <span className="text-[11px] text-slate-500">Dashboard Completo</span>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black text-white group-hover:text-emerald-300 transition-colors">
+                Finanzas
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Tarjetas, quincena y gastos
+              </p>
             </div>
+
+            <button className="w-full py-3 rounded-2xl bg-emerald-600/20 group-hover:bg-emerald-600 text-emerald-300 group-hover:text-white border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar a Finanzas</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
           </div>
 
-          {/* Módulo 2: GYM & SOBRECARGA PROGRESIVA */}
+          {/* Tarjeta 2: GYM */}
           <div
             onClick={() => onSelectModule('gym')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#171A2B] to-[#111322] border border-slate-800 hover:border-indigo-500/60 p-7 shadow-2xl transition-all duration-300 hover:scale-[1.02] cursor-pointer flex flex-col justify-between overflow-hidden"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#171A2B] to-[#111322] border border-slate-800 hover:border-indigo-500/60 p-8 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-6"
           >
-            {/* Resplandor decorativo */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-500" />
 
-            <div className="space-y-5 relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 group-hover:scale-110 transition-transform">
-                  <Dumbbell className="w-7 h-7 text-indigo-400" />
-                </div>
-                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  Nuevo Módulo
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-black text-white group-hover:text-indigo-300 transition-colors">
-                  Gym & Sobrecarga Progresiva
-                </h3>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                  Bitácora automatizada de entrenamiento: anota tus pesos (kg), barras de máquina, series y repeticiones para superar tus récords personales.
-                </p>
-              </div>
-
-              {/* Características clave */}
-              <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <span>Rutinas: Día de Pecho, Día de Espalda, Día de Pierna</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Target className="w-4 h-4 text-indigo-400" />
-                  <span>Recomendación dinámica para tu siguiente sesión (reps o peso)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span>Soporte para kg, barras en máquina y peso corporal</span>
-                </div>
-              </div>
+            <div className="w-20 h-20 rounded-3xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/10">
+              <Dumbbell className="w-10 h-10 text-indigo-400" />
             </div>
 
-            <div className="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-indigo-400 group-hover:translate-x-1 transition-transform flex items-center gap-1.5">
-                <span>Entrar al Gym Tracker</span>
-                <ArrowRight className="w-4 h-4" />
-              </span>
-              <span className="text-[11px] text-slate-500">Tus Marcas Personales</span>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black text-white group-hover:text-indigo-300 transition-colors">
+                GYM
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Pesos, barras y series
+              </p>
             </div>
+
+            <button className="w-full py-3 rounded-2xl bg-indigo-600/20 group-hover:bg-indigo-600 text-indigo-300 group-hover:text-white border border-indigo-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar a GYM</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
           </div>
         </div>
       </main>
 
       {/* Pie inferior */}
-      <footer className="text-center text-xs text-slate-500 py-4 border-t border-slate-900 max-w-6xl w-full mx-auto">
-        Sistema Personal de Richi • Finanzas & Progresión de Entrenamiento 2026
+      <footer className="text-center text-xs text-slate-500 py-4 border-t border-slate-900 max-w-4xl w-full mx-auto">
+        Sistema Personal • 2026
       </footer>
     </div>
   );

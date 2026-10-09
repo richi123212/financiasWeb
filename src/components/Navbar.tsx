@@ -81,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </>
                   ) : (
                     <>
-                      Gym<span className="text-indigo-400">Tracker</span>
+                      G<span className="text-indigo-400">YM</span>
                     </>
                   )}
                 </span>
@@ -115,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Dumbbell className="w-3.5 h-3.5" />
-              <span>Gym</span>
+              <span>GYM</span>
             </button>
           </div>
 
