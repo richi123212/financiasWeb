@@ -469,9 +469,60 @@ export function getSiguienteRutina(rutinaIdOTexto: string): {
 }
 
 /**
- * Obtener los ejercicios para una rutina, priorizando los que el usuario ya tiene
- * guardados en su historial para esa rutina (por ej. si ya guardó su Día de Espalda,
- * se respetan fielmente sus ejercicios registrados).
+ * Normalizar texto eliminando mayúsculas, espacios extremos y acentos/diacríticos.
+ */
+export function normalizarTexto(str: string): string {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Determina si el nombre de una sesión de entrenamiento corresponde a una de las 3 rutinas principales.
+ * Maneja alias comunes como "Pecho", "Día de Pecho", "Rutina 1", "Pierna", "Piernas", "Rutina 3", etc.
+ */
+export function coincideRutina(rutinaId: string, rutinaNombre: string): boolean {
+  const rId = normalizarTexto(rutinaId);
+  const rNom = normalizarTexto(rutinaNombre);
+
+  if (!rNom) return false;
+  if (rNom.includes(rId)) return true;
+
+  if (rId === 'pecho') {
+    return (
+      rNom.includes('pecho') ||
+      rNom.includes('rutina 1') ||
+      rNom.includes('dia 1') ||
+      rNom === '1'
+    );
+  }
+  if (rId === 'espalda') {
+    return (
+      rNom.includes('espalda') ||
+      rNom.includes('rutina 2') ||
+      rNom.includes('dia 2') ||
+      rNom === '2'
+    );
+  }
+  if (rId === 'pierna') {
+    return (
+      rNom.includes('pierna') ||
+      rNom.includes('piernas') ||
+      rNom.includes('rutina 3') ||
+      rNom.includes('dia 3') ||
+      rNom === '3'
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Obtener los ejercicios para una rutina, consolidando el historial completo de ejercicios
+ * registrados para ese día (por ej. si en Día de Pierna agregaste 3 ejercicios en sesiones pasadas,
+ * se cargan fielmente todos con sus marcas más recientes y sobrecarga progresiva).
  */
 export function obtenerEjerciciosParaRutina(
   rutinaId: string,
@@ -485,49 +536,82 @@ export function obtenerEjerciciosParaRutina(
   pesoSugerido?: number;
   repsSugeridas?: number;
 }[] {
-  const normRutina = rutinaId.toLowerCase();
+  // 1. Filtrar todas las sesiones que corresponden a esta rutina, ordenadas de más reciente a más antigua
+  const sesionesRutina = entrenamientos
+    .filter((e) => coincideRutina(rutinaId, e.rutina_nombre))
+    .sort((a, b) => {
+      const timeA = new Date(a.created_at || a.fecha).getTime();
+      const timeB = new Date(b.created_at || b.fecha).getTime();
+      return timeB - timeA;
+    });
 
-  // Buscar última sesión de esta rutina en el historial
-  const sesionPrevia = entrenamientos.find((e) => {
-    const n = e.rutina_nombre.toLowerCase();
-    if (normRutina === 'pecho') return n.includes('pecho');
-    if (normRutina === 'espalda') return n.includes('espalda');
-    if (normRutina === 'pierna') return n.includes('pierna');
-    return n.includes(normRutina);
-  });
+  if (sesionesRutina.length === 0) {
+    return [];
+  }
 
-  if (sesionPrevia && sesionPrevia.ejercicios && sesionPrevia.ejercicios.length > 0) {
-    return sesionPrevia.ejercicios.map((ej) => {
-      // Tomar las series de la sesión previa
-      const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
-      const seriesBase = efectivas.length > 0 ? efectivas : ej.series;
+  // 2. Extraer todos los ejercicios únicos de esta rutina en orden de aparición más reciente
+  const mapaEjercicios = new Map<
+    string,
+    {
+      nombre: string;
+      tipo_carga: 'kg' | 'barras' | 'peso_corporal';
+      series: { peso: number; reps: number; tipo?: 'calentamiento' | 'efectiva' | 'fallo' }[];
+    }
+  >();
 
-      // Calcular recomendación de sobrecarga progresiva
-      const rec = calcularRecomendacionSobrecarga(
-        ej.nombre,
-        ej.tipo_carga,
-        entrenamientos,
-        seriesBase
-      );
+  for (const sesion of sesionesRutina) {
+    if (!sesion.ejercicios || !Array.isArray(sesion.ejercicios)) continue;
+    for (const ej of sesion.ejercicios) {
+      if (!ej.nombre || !ej.nombre.trim()) continue;
+      const key = normalizarTexto(ej.nombre);
+      if (!mapaEjercicios.has(key)) {
+        const efectivas = ej.series ? ej.series.filter((s) => s.tipo !== 'calentamiento') : [];
+        const seriesBase = efectivas.length > 0 ? efectivas : ej.series || [];
 
-      return {
-        nombre: ej.nombre,
-        tipo_carga: ej.tipo_carga,
-        series: seriesBase.map((s) => ({
+        mapaEjercicios.set(key, {
+          nombre: ej.nombre.trim(),
+          tipo_carga: ej.tipo_carga || 'kg',
+          series: seriesBase,
+        });
+      }
+    }
+  }
+
+  const listaEjercicios = Array.from(mapaEjercicios.values());
+  if (listaEjercicios.length === 0) return [];
+
+  // 3. Para cada ejercicio, calcular recomendación de sobrecarga y cargar series sugeridas
+  return listaEjercicios.map((ej) => {
+    const rec = calcularRecomendacionSobrecarga(
+      ej.nombre,
+      ej.tipo_carga,
+      entrenamientos,
+      ej.series
+    );
+
+    const seriesCargar = ej.series.length > 0
+      ? ej.series.map((s) => ({
           peso: rec.accion === 'subir_peso' && rec.pesoSugerido > 0 ? rec.pesoSugerido : s.peso,
           reps: rec.accion === 'subir_peso' && rec.repsSugeridas > 0 ? rec.repsSugeridas : s.reps,
           tipo: 'efectiva' as const,
-        })),
-        marcaAnterior: rec.resumenUltimo,
-        objetivo: rec.recomendacionTexto,
-        pesoSugerido: rec.pesoSugerido,
-        repsSugeridas: rec.repsSugeridas,
-      };
-    });
-  }
+        }))
+      : [
+          { peso: rec.pesoSugerido || 10, reps: rec.repsSugeridas || 10, tipo: 'efectiva' as const },
+          { peso: rec.pesoSugerido || 10, reps: rec.repsSugeridas || 10, tipo: 'efectiva' as const },
+          { peso: rec.pesoSugerido || 10, reps: rec.repsSugeridas || 10, tipo: 'efectiva' as const },
+          { peso: rec.pesoSugerido || 10, reps: rec.repsSugeridas || 10, tipo: 'efectiva' as const },
+        ];
 
-  // Si no hay historial previo para esta rutina, regresar vacío para que el usuario cree su propia lista
-  return [];
+    return {
+      nombre: ej.nombre,
+      tipo_carga: ej.tipo_carga,
+      series: seriesCargar,
+      marcaAnterior: rec.resumenUltimo,
+      objetivo: rec.recomendacionTexto,
+      pesoSugerido: rec.pesoSugerido,
+      repsSugeridas: rec.repsSugeridas,
+    };
+  });
 }
 
 /**

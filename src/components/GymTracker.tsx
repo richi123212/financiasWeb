@@ -32,6 +32,7 @@ import {
   obtenerEjerciciosParaRutina,
   calcularRecomendacionSobrecarga,
   reproducirChimeFinDescanso,
+  coincideRutina,
 } from '../lib/gymData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -178,7 +179,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             .from('gym_entrenamientos')
             .select('*')
             .eq('user_id', user.id)
-            .order('fecha', { ascending: false });
+            .order('created_at', { ascending: false });
 
           if (!error && data) {
             const mapped: GymEntrenamiento[] = data.map((row: any) => ({
@@ -219,9 +220,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               }
             }
 
-            const todos = [...mapped, ...soloLocales].sort(
-              (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-            );
+            const todos = [...mapped, ...soloLocales].sort((a, b) => {
+              const timeA = new Date(a.created_at || a.fecha).getTime();
+              const timeB = new Date(b.created_at || b.fecha).getTime();
+              return timeB - timeA;
+            });
 
             setEntrenamientos(todos);
             setHasLoadedInitial(true);
@@ -323,15 +326,18 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // ----------------------------------------------------------------------
   const estadoRutinas = useMemo(() => {
     return RUTINAS_3_PRINCIPALES.map((r) => {
+      // Obtener todos los ejercicios acumulados para esta rutina con sus marcas y sobrecargas
+      const ejerciciosRutina = obtenerEjerciciosParaRutina(r.id, entrenamientos);
+
       // Buscar última sesión de esta rutina en el historial
       const sesionPrevia = entrenamientos.find((e) =>
-        e.rutina_nombre.toLowerCase().includes(r.id)
+        coincideRutina(r.id, e.rutina_nombre)
       );
 
       return {
         ...r,
         ultimaSesion: sesionPrevia,
-        ejerciciosEnHistorial: sesionPrevia ? sesionPrevia.ejercicios : [],
+        ejerciciosEnHistorial: ejerciciosRutina,
       };
     });
   }, [entrenamientos]);
@@ -692,23 +698,26 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   const handleFinalizarEntrenamiento = async () => {
     if (!sesionEnCurso) return;
 
+    // Cualquier ejercicio que tenga nombre y no haya sido omitido se considera realizado
     const ejerciciosRealizados = sesionEnCurso.ejercicios.filter(
-      (e) => e.guardado && e.nombre.trim() !== '' && e.series && e.series.length > 0
+      (e) => !e.omitido && e.nombre.trim() !== '' && e.series && e.series.length > 0
     );
 
-    const ejerciciosOmitidos = sesionEnCurso.ejercicios.filter((e) => !e.guardado);
+    const ejerciciosOmitidos = sesionEnCurso.ejercicios.filter(
+      (e) => e.omitido && e.nombre.trim() !== ''
+    );
 
     if (ejerciciosRealizados.length === 0) {
       alert(
-        'Aún no has guardado ningún ejercicio con nombre en este entrenamiento. Haz clic en "Guardar Ejercicio" en al menos uno para registrar tu sesión.'
+        'Escribe el nombre de al menos un ejercicio y sus repeticiones para guardar tu entrenamiento.'
       );
       return;
     }
 
     if (ejerciciosOmitidos.length > 0) {
       const confirmacion = confirm(
-        `Has guardado ${ejerciciosRealizados.length} de ${sesionEnCurso.ejercicios.length} ejercicios.\n\n` +
-          `Los ejercicios no realizados mantendrán sus marcas anteriores intactas en tu historial.\n\n` +
+        `Has realizado ${ejerciciosRealizados.length} ejercicio(s) y omitido ${ejerciciosOmitidos.length}.\n\n` +
+          `Los ejercicios omitidos hoy mantendrán sus marcas anteriores intactas en tu rutina.\n\n` +
           `¿Deseas finalizar y guardar el entrenamiento de hoy?`
       );
       if (!confirmacion) return;
@@ -759,8 +768,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         };
       }
 
-      // 1. Agregar a la lista de entrenamientos
-      setEntrenamientos((prev) => [savedItem!, ...prev]);
+      // 1. Agregar a la lista de entrenamientos (más reciente primero)
+      setEntrenamientos((prev) => [savedItem!, ...prev.filter((p) => p.id !== savedItem!.id)]);
 
       // 2. Limpiar sesión activa
       setSesionEnCurso(null);
@@ -794,8 +803,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
   const progresoSesion = useMemo(() => {
     if (!sesionEnCurso) return { total: 0, guardados: 0, porcentaje: 0 };
-    const total = sesionEnCurso.ejercicios.length;
-    const guardados = sesionEnCurso.ejercicios.filter((e) => e.guardado).length;
+    const validos = sesionEnCurso.ejercicios.filter((e) => !e.omitido && e.nombre.trim() !== '');
+    const total = validos.length;
+    const guardados = validos.filter(
+      (e) => e.guardado || e.series.some((s) => s.completada)
+    ).length;
     const porcentaje = total > 0 ? Math.round((guardados / total) * 100) : 0;
     return { total, guardados, porcentaje };
   }, [sesionEnCurso]);
