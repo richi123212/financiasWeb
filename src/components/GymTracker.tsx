@@ -1187,65 +1187,67 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       {/* 5. MODAL / PANTALLA DE MODO ENTRENAMIENTO EN VIVO */}
       {/* ====================================================================== */}
       {isModoEntrenamientoOpen && sesionEnCurso && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-4xl rounded-3xl bg-[#141C2B] border border-slate-700/90 shadow-2xl overflow-hidden max-h-[96vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full h-full sm:h-auto sm:max-h-[94vh] max-w-4xl rounded-none sm:rounded-3xl bg-[#141C2B] border-0 sm:border border-slate-700/90 shadow-2xl overflow-hidden flex flex-col">
             {/* Cabecera del Modo Entrenamiento */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 bg-[#111723] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex-shrink-0">
-                  <Dumbbell className="w-6 h-6 text-indigo-400 animate-pulse" />
+            <div className="p-3 sm:p-5 border-b border-slate-800 bg-[#111723] flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex-shrink-0">
+                  <Dumbbell className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400 animate-pulse" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
-                      ● Modo Entrenamiento En Vivo
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                      ● En Vivo
                     </span>
-                    <span className="text-[11px] text-slate-400">
-                      Fecha: {sesionEnCurso.fecha}
+                    <span className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+                      {sesionEnCurso.fecha}
                     </span>
                   </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white">
+                  <h3 className="text-base sm:text-xl font-black text-white truncate">
                     {sesionEnCurso.rutinaNombre}
                   </h3>
                 </div>
               </div>
 
               {/* Botones de acción rápida en cabecera */}
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 <button
                   type="button"
                   onClick={handleAddEjercicio}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition-all cursor-pointer"
+                  title="Agregar otro ejercicio"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Agregar Ejercicio</span>
+                  <span className="hidden sm:inline">Ejercicio</span>
                 </button>
 
                 <button
                   onClick={() => setIsModoEntrenamientoOpen(false)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
-                  title="Cerrar ventana (se mantiene guardado en tu dispositivo)"
+                  className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1"
+                  title="Minimizar (se mantiene guardado en tu dispositivo)"
                 >
-                  Minimizar
+                  <X className="w-4 h-4 sm:hidden" />
+                  <span className="hidden sm:inline">Minimizar</span>
                 </button>
               </div>
             </div>
 
             {/* Barra Fija del Temporizador de Descanso */}
-            <div className="px-4 sm:px-6 py-3 bg-[#172033] border-b border-indigo-500/20 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+            <div className="px-3 sm:px-6 py-2 sm:py-3 bg-[#172033] border-b border-indigo-500/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+              <div className="flex items-center justify-between sm:justify-start gap-2.5">
                 <div className="flex items-center gap-2">
                   <Clock
-                    className={`w-5 h-5 ${
+                    className={`w-4 h-4 sm:w-5 sm:h-5 ${
                       isTimerRunning ? 'text-amber-400 animate-spin' : 'text-indigo-400'
                     }`}
                   />
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Descanso
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                      Descanso:
                     </span>
                     <span
-                      className={`text-xl sm:text-2xl font-black tabular-nums tracking-tight ${
+                      className={`text-lg sm:text-2xl font-black tabular-nums tracking-tight ${
                         timerSeconds !== null && timerSeconds > 0
                           ? 'text-white'
                           : timerSeconds === 0
@@ -1267,24 +1269,24 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                     <>
                       <button
                         onClick={pauseOrResumeTimer}
-                        className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all cursor-pointer"
+                        className="p-1.5 sm:p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all cursor-pointer"
                         title={isTimerRunning ? 'Pausar descanso' : 'Reanudar descanso'}
                       >
                         {isTimerRunning ? (
-                          <Pause className="w-4 h-4" />
+                          <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         ) : (
-                          <Play className="w-4 h-4" />
+                          <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         )}
                       </button>
                       <button
                         onClick={() => adjustTimer(15)}
-                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                        className="px-1.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold cursor-pointer"
                       >
                         +15s
                       </button>
                       <button
                         onClick={() => adjustTimer(-15)}
-                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                        className="px-1.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs font-bold cursor-pointer"
                       >
                         -15s
                       </button>
@@ -1294,18 +1296,17 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   {timerSeconds !== null && (
                     <button
                       onClick={stopTimer}
-                      className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-all cursor-pointer"
+                      className="p-1.5 sm:p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-all cursor-pointer"
                       title="Reiniciar temporizador"
                     >
-                      <RotateCcw className="w-4 h-4" />
+                      <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Presets Rápidos */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-slate-400 font-semibold mr-1">Iniciar:</span>
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 justify-start sm:justify-end">
                 {[
                   { label: '45s', val: 45 },
                   { label: '60s', val: 60 },
@@ -1316,9 +1317,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   <button
                     key={item.val}
                     onClick={() => startTimer(item.val)}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-2 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${
                       timerSeconds === item.val && isTimerRunning
-                        ? 'bg-amber-500 text-black shadow-lg font-black'
+                        ? 'bg-amber-500 text-black shadow-md font-black'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                     }`}
                   >
@@ -1328,7 +1329,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
                 <button
                   onClick={() => setTimerSonidoHabilitado((prev) => !prev)}
-                  className={`p-1.5 rounded-xl text-xs ml-1 cursor-pointer ${
+                  className={`p-1.5 rounded-lg text-xs ml-0.5 cursor-pointer flex-shrink-0 ${
                     timerSonidoHabilitado
                       ? 'bg-emerald-500/20 text-emerald-300'
                       : 'bg-slate-800 text-slate-500'
@@ -1346,7 +1347,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
             {/* Mensaje de alerta del temporizador al sonar */}
             {timerMensajeAlerta && (
-              <div className="px-6 py-2.5 bg-emerald-500/20 border-b border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-2 bg-emerald-500/20 border-b border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-between">
                 <span>🔔 {timerMensajeAlerta}</span>
                 <button
                   onClick={() => setTimerMensajeAlerta(null)}
@@ -1358,10 +1359,10 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             )}
 
             {/* Barra de Progreso de la Sesión */}
-            <div className="px-6 py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between gap-4 text-xs">
-              <span className="text-slate-300 font-semibold">
+            <div className="px-3.5 sm:px-6 py-1.5 sm:py-2 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between gap-3 text-xs">
+              <span className="text-slate-300 font-semibold text-[11px] sm:text-xs truncate">
                 Progreso: <strong>{progresoSesion.guardados}</strong> de{' '}
-                <strong>{progresoSesion.total}</strong> ejercicios guardados
+                <strong>{progresoSesion.total}</strong> guardados
               </span>
               <div className="flex-1 max-w-xs h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div
@@ -1369,11 +1370,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   style={{ width: `${progresoSesion.porcentaje}%` }}
                 />
               </div>
-              <span className="text-indigo-400 font-bold">{progresoSesion.porcentaje}%</span>
+              <span className="text-indigo-400 font-bold text-xs">{progresoSesion.porcentaje}%</span>
             </div>
 
             {/* Lista de Ejercicios en Modo Entrenamiento */}
-            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
+            <div className="p-3 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
               {sesionEnCurso.ejercicios.length === 0 ? (
                 <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-slate-400 space-y-3">
                   <p className="text-base font-bold text-white">
@@ -1407,26 +1408,27 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                   return (
                     <div
                       key={ej.id || ejIdx}
-                      className={`p-5 rounded-2xl border transition-all duration-200 ${
+                      className={`p-3.5 sm:p-5 rounded-2xl border transition-all duration-200 ${
                         ej.guardado
                           ? 'bg-[#152328] border-emerald-500/50 shadow-lg'
                           : ej.omitido
                           ? 'bg-slate-900/50 border-slate-800 opacity-60'
-                          : 'bg-slate-900/90 border-slate-700/80'
+                          : 'bg-[#172033]/90 border-slate-700/80 shadow-md'
                       }`}
                     >
-                      {/* Cabecera del Ejercicio (Nombre y Carga editables) */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-                        <div className="flex-1 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <input
-                              type="text"
-                              value={ej.nombre}
-                              onChange={(e) => handleUpdateEjercicioNombre(ejIdx, e.target.value)}
-                              placeholder="Nombre del ejercicio (ej. Press banca, Dominadas...)"
-                              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-black focus:outline-none focus:border-indigo-500 flex-1 min-w-[200px]"
-                            />
+                      {/* Cabecera del Ejercicio (Nombre, Carga y Estado) */}
+                      <div className="flex flex-col gap-2.5 pb-3 border-b border-slate-800">
+                        {/* Fila 1: Nombre del ejercicio y select de carga */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <input
+                            type="text"
+                            value={ej.nombre}
+                            onChange={(e) => handleUpdateEjercicioNombre(ejIdx, e.target.value)}
+                            placeholder="Nombre del ejercicio (ej. Press banca...)"
+                            className="w-full sm:flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm sm:text-base font-black focus:outline-none focus:border-indigo-500"
+                          />
 
+                          <div className="flex items-center gap-2 justify-between sm:justify-end flex-wrap">
                             <select
                               value={ej.tipo_carga}
                               onChange={(e) =>
@@ -1441,135 +1443,137 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
                             {/* Estado del Ejercicio */}
                             {ej.guardado ? (
-                              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                <span>✓ Guardado hoy</span>
+                              <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>✓ Guardado</span>
                               </span>
                             ) : ej.omitido ? (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
                                 Omitido hoy
                               </span>
                             ) : (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                                 Pendiente
                               </span>
                             )}
                           </div>
-
-                          {/* Panel de Sobrecarga Progresiva y Sugerencia de Aumento de Peso */}
-                          {(() => {
-                            const rec = calcularRecomendacionSobrecarga(
-                              ej.nombre,
-                              ej.tipo_carga,
-                              entrenamientos,
-                              ej.series
-                            );
-
-                            return (
-                              <div className="pt-1.5 space-y-1.5">
-                                {rec.tieneHistorial ? (
-                                  <div
-                                    className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs ${
-                                      rec.accion === 'subir_peso'
-                                        ? 'bg-gradient-to-r from-emerald-950/60 via-[#132822] to-slate-900 border-emerald-500/60 shadow-md shadow-emerald-500/10'
-                                        : 'bg-slate-800/80 border-slate-700/70'
-                                    }`}
-                                  >
-                                    <div className="space-y-1 flex-1">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">
-                                          Última vez: {rec.resumenUltimo}
-                                        </span>
-
-                                        {rec.accion === 'subir_peso' ? (
-                                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 animate-pulse">
-                                            <Sparkles className="w-3 h-3 text-amber-300" />
-                                            <span>¡Sugerencia: Súbele a {rec.pesoSugerido}{rec.unidad}!</span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                            Meta: {rec.siguienteMeta}
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <p className="text-xs text-slate-200 font-medium leading-relaxed">
-                                        {rec.recomendacionTexto}
-                                      </p>
-                                    </div>
-
-                                    {/* Botón rápido para aplicar el aumento sugerido de peso */}
-                                    {rec.accion === 'subir_peso' && rec.pesoSugerido > 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleAplicarSugerenciaSobrecarga(
-                                            ejIdx,
-                                            rec.pesoSugerido,
-                                            rec.repsSugeridas
-                                          )
-                                        }
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-[11px] shadow-md shadow-emerald-600/30 transition-all self-start sm:self-auto cursor-pointer flex-shrink-0"
-                                        title={`Poner ${rec.pesoSugerido}${rec.unidad} en tus series efectivas de hoy`}
-                                      >
-                                        <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>Subir a {rec.pesoSugerido}{rec.unidad}</span>
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : ej.nombre.trim() !== '' ? (
-                                  <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400">
-                                    Primer registro para este ejercicio. Anota tus series hoy y en la siguiente sesión la app te sugerirá exactamente cuándo aumentarle peso o repeticiones.
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })()}
                         </div>
 
+                        {/* Panel de Sobrecarga Progresiva y Sugerencia de Aumento de Peso */}
+                        {(() => {
+                          const rec = calcularRecomendacionSobrecarga(
+                            ej.nombre,
+                            ej.tipo_carga,
+                            entrenamientos,
+                            ej.series
+                          );
+
+                          return (
+                            <div className="pt-1 space-y-1.5">
+                              {rec.tieneHistorial ? (
+                                <div
+                                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs ${
+                                    rec.accion === 'subir_peso'
+                                      ? 'bg-gradient-to-r from-emerald-950/60 via-[#132822] to-slate-900 border-emerald-500/60 shadow-md shadow-emerald-500/10'
+                                      : 'bg-slate-800/80 border-slate-700/70'
+                                  }`}
+                                >
+                                  <div className="space-y-1 flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">
+                                        Última vez: {rec.resumenUltimo}
+                                      </span>
+
+                                      {rec.accion === 'subir_peso' ? (
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 animate-pulse">
+                                          <Sparkles className="w-3 h-3 text-amber-300" />
+                                          <span>¡Sugerencia: Súbele a {rec.pesoSugerido}{rec.unidad}!</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                          Meta: {rec.siguienteMeta}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="text-xs text-slate-200 font-medium leading-relaxed">
+                                      {rec.recomendacionTexto}
+                                    </p>
+                                  </div>
+
+                                  {/* Botón rápido para aplicar el aumento sugerido de peso */}
+                                  {rec.accion === 'subir_peso' && rec.pesoSugerido > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAplicarSugerenciaSobrecarga(
+                                          ejIdx,
+                                          rec.pesoSugerido,
+                                          rec.repsSugeridas
+                                        )
+                                      }
+                                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer flex-shrink-0 w-full sm:w-auto"
+                                      title={`Poner ${rec.pesoSugerido}${rec.unidad} en tus series efectivas de hoy`}
+                                    >
+                                      <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                                      <span>Subir a {rec.pesoSugerido}{rec.unidad}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              ) : ej.nombre.trim() !== '' ? (
+                                <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400">
+                                  Primer registro para este ejercicio. Anota tus series hoy y en la siguiente sesión la app te sugerirá exactamente cuándo aumentarle peso o repeticiones.
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
+
                         {/* Botones de Acción del Ejercicio */}
-                        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-                          {ej.guardado ? (
-                            <button
-                              type="button"
-                              onClick={() => handleReactivarEjercicio(ejIdx)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
-                            >
-                              Editar nuevamente
-                            </button>
-                          ) : ej.omitido ? (
-                            <button
-                              type="button"
-                              onClick={() => handleReactivarEjercicio(ejIdx)}
-                              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"
-                            >
-                              Realizar este ejercicio
-                            </button>
-                          ) : (
-                            <>
+                        <div className="flex items-center gap-2 pt-1 flex-wrap justify-between sm:justify-end">
+                          <div className="flex items-center gap-2 flex-wrap flex-1 sm:flex-initial">
+                            {ej.guardado ? (
                               <button
                                 type="button"
-                                onClick={() => handleOmitirEjercicio(ejIdx)}
-                                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold cursor-pointer"
-                                title="Si hoy no harás este ejercicio, sus marcas anteriores se mantendrán intactas"
+                                onClick={() => handleReactivarEjercicio(ejIdx)}
+                                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer text-center"
                               >
-                                No haré este hoy
+                                Editar nuevamente
                               </button>
+                            ) : ej.omitido ? (
                               <button
                                 type="button"
-                                onClick={() => handleGuardarEjercicio(ejIdx)}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
+                                onClick={() => handleReactivarEjercicio(ejIdx)}
+                                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer text-center"
                               >
-                                <Check className="w-4 h-4 stroke-[3]" />
-                                <span>Guardar Ejercicio</span>
+                                Realizar este ejercicio
                               </button>
-                            </>
-                          )}
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOmitirEjercicio(ejIdx)}
+                                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold cursor-pointer"
+                                  title="Si hoy no harás este ejercicio, sus marcas anteriores se mantendrán intactas"
+                                >
+                                  No haré este hoy
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGuardarEjercicio(ejIdx)}
+                                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
+                                >
+                                  <Check className="w-4 h-4 stroke-[3]" />
+                                  <span>Guardar Ejercicio</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
 
                           <button
                             type="button"
                             onClick={() => handleRemoveEjercicio(ejIdx)}
-                            className="p-2 rounded-xl bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                            className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer flex-shrink-0"
                             title="Eliminar este ejercicio de la rutina"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1610,18 +1614,19 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
                       {/* Tabla de Series del Ejercicio */}
                       {!ej.omitido && (
-                        <div className="mt-4 space-y-2">
-                          <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
-                            <span className="col-span-3 sm:col-span-2">Serie</span>
-                            <span className="col-span-4 sm:col-span-4">
+                        <div className="mt-3 sm:mt-4 space-y-2">
+                          {/* Cabecera de columnas para las series */}
+                          <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider px-1">
+                            <span className="w-8 sm:w-10 text-center flex-shrink-0">Set</span>
+                            <span className="flex-1 min-w-0 text-center">
                               {ej.tipo_carga === 'barras'
                                 ? 'Barras'
                                 : ej.tipo_carga === 'kg'
                                 ? 'Peso (KG)'
                                 : 'Carga'}
                             </span>
-                            <span className="col-span-3 sm:col-span-4">Reps</span>
-                            <span className="col-span-2 text-right">Completar</span>
+                            <span className="flex-1 min-w-0 text-center">Reps</span>
+                            <span className="w-16 sm:w-20 text-center flex-shrink-0">Listo</span>
                           </div>
 
                           {ej.series.map((s, sIdx) => {
@@ -1630,91 +1635,94 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                             return (
                               <div
                                 key={sIdx}
-                                className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl border transition-all ${
+                                className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl border transition-all ${
                                   s.completada
-                                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                                    ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-200'
                                     : esCalentamiento
-                                    ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
-                                    : 'bg-slate-800/50 border-slate-700/60'
+                                    ? 'bg-amber-950/25 border-amber-500/35 text-amber-200'
+                                    : 'bg-slate-800/60 border-slate-700/70 hover:border-slate-600'
                                 }`}
                               >
-                                {/* Nombre de la serie */}
-                                <div className="col-span-3 sm:col-span-2 flex items-center gap-1 text-xs font-bold pl-1">
+                                {/* Número o tipo de serie */}
+                                <div className="w-8 sm:w-10 flex-shrink-0 flex items-center justify-center">
                                   {esCalentamiento ? (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold flex items-center gap-0.5">
+                                    <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black flex items-center justify-center gap-0.5 border border-amber-500/30" title="Serie de calentamiento">
                                       <Flame className="w-2.5 h-2.5 text-amber-400" />
-                                      <span>Cal.{sIdx + 1}</span>
+                                      <span>C{sIdx + 1}</span>
                                     </span>
                                   ) : (
-                                    <span className="text-slate-300">#{sIdx + 1}</span>
-                                  )}
-                                </div>
-
-                                {/* Peso o Barras con botones rápidos +/- */}
-                                <div className="col-span-4 sm:col-span-4 flex items-center gap-1">
-                                  {ej.tipo_carga !== 'peso_corporal' ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
-                                          const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
-                                          handleUpdateSerieValor(
-                                            ejIdx,
-                                            sIdx,
-                                            'peso',
-                                            Math.max(0, p - step)
-                                          );
-                                        }}
-                                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={s.peso === ('' as any) ? '' : s.peso}
-                                        onFocus={(e) => e.target.select()}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(',', '.');
-                                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                            handleUpdateSerieValor(
-                                              ejIdx,
-                                              sIdx,
-                                              'peso',
-                                              val
-                                            );
-                                          }
-                                        }}
-                                        onBlur={() => handleBlurSerieValor(ejIdx, sIdx, 'peso')}
-                                        className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
-                                          const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
-                                          handleUpdateSerieValor(
-                                            ejIdx,
-                                            sIdx,
-                                            'peso',
-                                            p + step
-                                          );
-                                        }}
-                                        className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
-                                      >
-                                        +
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-xs text-slate-400 pl-1 font-semibold">
-                                      Corporal
+                                    <span className="text-xs sm:text-sm font-black text-slate-300">
+                                      #{sIdx + 1}
                                     </span>
                                   )}
                                 </div>
 
-                                {/* Repeticiones con botones rápidos +/- */}
-                                <div className="col-span-3 sm:col-span-4 flex items-center gap-1">
+                                {/* Stepper de Peso / Barras */}
+                                {ej.tipo_carga !== 'peso_corporal' ? (
+                                  <div className="flex-1 min-w-0 flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
+                                        const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
+                                        handleUpdateSerieValor(
+                                          ejIdx,
+                                          sIdx,
+                                          'peso',
+                                          Math.max(0, p - step)
+                                        );
+                                      }}
+                                      className="w-7 sm:w-8 h-8 sm:h-9 bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-black flex items-center justify-center flex-shrink-0 cursor-pointer select-none transition-colors"
+                                      title="Reducir peso"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={s.peso === ('' as any) ? '' : s.peso}
+                                      onFocus={(e) => e.target.select()}
+                                      onChange={(e) => {
+                                        const val = e.target.value.replace(',', '.');
+                                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                          handleUpdateSerieValor(
+                                            ejIdx,
+                                            sIdx,
+                                            'peso',
+                                            val
+                                          );
+                                        }
+                                      }}
+                                      onBlur={() => handleBlurSerieValor(ejIdx, sIdx, 'peso')}
+                                      className="w-full min-w-0 px-1 py-1 bg-transparent text-white text-xs sm:text-sm font-black text-center focus:outline-none"
+                                      placeholder="0"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const step = ej.tipo_carga === 'barras' ? 1 : 2.5;
+                                        const p = typeof s.peso === 'number' ? s.peso : parseFloat(String(s.peso)) || 0;
+                                        handleUpdateSerieValor(
+                                          ejIdx,
+                                          sIdx,
+                                          'peso',
+                                          p + step
+                                        );
+                                      }}
+                                      className="w-7 sm:w-8 h-8 sm:h-9 bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-black flex items-center justify-center flex-shrink-0 cursor-pointer select-none transition-colors"
+                                      title="Aumentar peso"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 min-w-0 flex items-center justify-center h-8 sm:h-9 bg-slate-900/60 border border-slate-800 rounded-xl text-[11px] sm:text-xs text-slate-400 font-semibold">
+                                    Corporal
+                                  </div>
+                                )}
+
+                                {/* Stepper de Repeticiones */}
+                                <div className="flex-1 min-w-0 flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1726,7 +1734,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                         Math.max(1, r - 1)
                                       );
                                     }}
-                                    className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                    className="w-7 sm:w-8 h-8 sm:h-9 bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-black flex items-center justify-center flex-shrink-0 cursor-pointer select-none transition-colors"
+                                    title="Restar 1 repetición"
                                   >
                                     -
                                   </button>
@@ -1748,7 +1757,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                       }
                                     }}
                                     onBlur={() => handleBlurSerieValor(ejIdx, sIdx, 'reps')}
-                                    className="w-full px-1.5 py-1 bg-slate-900 border border-slate-700 rounded text-white text-xs font-bold text-center focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                    className="w-full min-w-0 px-1 py-1 bg-transparent text-white text-xs sm:text-sm font-black text-center focus:outline-none"
+                                    placeholder="0"
                                   />
                                   <button
                                     type="button"
@@ -1761,14 +1771,15 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                         r + 1
                                       );
                                     }}
-                                    className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center flex-shrink-0 cursor-pointer"
+                                    className="w-7 sm:w-8 h-8 sm:h-9 bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-black flex items-center justify-center flex-shrink-0 cursor-pointer select-none transition-colors"
+                                    title="Sumar 1 repetición"
                                   >
                                     +
                                   </button>
                                 </div>
 
-                                {/* Botón de Check Serie Completada / Quitar Serie */}
-                                <div className="col-span-2 flex items-center justify-end gap-1">
+                                {/* Botón de Check y Eliminar Serie */}
+                                <div className="w-16 sm:w-20 flex-shrink-0 flex items-center justify-end gap-1">
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1779,19 +1790,19 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                         !s.completada
                                       )
                                     }
-                                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                    className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                                       s.completada
-                                        ? 'bg-emerald-500 text-slate-950 font-bold'
-                                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/30'
+                                        : 'bg-slate-700/80 hover:bg-slate-600 text-slate-300'
                                     }`}
-                                    title="Marcar serie completada y tomar descanso"
+                                    title={s.completada ? 'Completada (clic para desmarcar)' : 'Marcar serie completada y activar descanso'}
                                   >
-                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                    <Check className="w-4 h-4 stroke-[3]" />
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveSerie(ejIdx, sIdx)}
-                                    className="p-1 rounded text-slate-500 hover:text-red-400 cursor-pointer"
+                                    className="h-8 w-6 sm:h-9 sm:w-7 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
                                     title="Eliminar serie"
                                   >
                                     <X className="w-3.5 h-3.5" />
@@ -1804,9 +1815,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                           <button
                             type="button"
                             onClick={() => handleAddSerie(ejIdx)}
-                            className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 pt-1 cursor-pointer"
+                            className="text-[11px] sm:text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1.5 pt-1 cursor-pointer"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                             <span>Agregar Serie a este ejercicio</span>
                           </button>
                         </div>
@@ -1846,22 +1857,29 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             </div>
 
             {/* Pie de Acciones del Modo Entrenamiento */}
-            <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#111723] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+            <div className="p-3 sm:p-5 border-t border-slate-800 bg-[#111723] flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="flex items-center justify-between sm:justify-start gap-2">
                 <button
                   type="button"
                   onClick={handleDescartarSesionActiva}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 sm:py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Descartar Sesión
                 </button>
-              </div>
-
-              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsModoEntrenamientoOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                  className="px-3.5 py-2 sm:py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer sm:hidden"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsModoEntrenamientoOpen(false)}
+                  className="hidden sm:inline-flex px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
                 >
                   Cerrar (Guarda Automático)
                 </button>
@@ -1869,7 +1887,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 <button
                   type="button"
                   onClick={handleFinalizarEntrenamiento}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-black text-xs shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 active:scale-98 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
                 >
                   <CheckCheck className="w-4 h-4 stroke-[2.5]" />
                   <span>Finalizar Todo el Entrenamiento</span>
