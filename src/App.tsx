@@ -13,6 +13,8 @@ import {
   Calculator,
   Sparkles,
   Sliders,
+  Edit3,
+  CheckCircle,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type {
@@ -52,6 +54,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { Login } from './components/Login';
 import { ModuleHub } from './components/ModuleHub';
 import { GymTracker } from './components/GymTracker';
+import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
 
@@ -68,11 +71,14 @@ export default function App() {
   const [inversiones, setInversiones] = useState<Inversion[]>(INITIAL_INVERSIONES);
   const [gastosFijos, setGastosFijos] = useState<GastoFuturoFijo[]>(INITIAL_GASTOS_FIJOS);
   const [saldoBaseEfectivo, setSaldoBaseEfectivo] = useState<number>(194.14);
+  const [sueldoQuincenal, setSueldoQuincenal] = useState<number>(6750);
 
   // Navegación y Modales
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones'>('dashboard');
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isCardsModalOpen, setIsCardsModalOpen] = useState(false);
+  const [isEditSueldoModalOpen, setIsEditSueldoModalOpen] = useState(false);
+  const [sueldoGuardadoToast, setSueldoGuardadoToast] = useState<string | null>(null);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [txModalPreset, setTxModalPreset] = useState<{
     tipo?: TipoOperacionModal;
@@ -111,6 +117,7 @@ export default function App() {
             if (parsed.inversiones) setInversiones(parsed.inversiones);
             if (parsed.gastosFijos) setGastosFijos(parsed.gastosFijos);
             if (parsed.saldoBaseEfectivo !== undefined) setSaldoBaseEfectivo(parsed.saldoBaseEfectivo);
+            if (parsed.sueldoQuincenal !== undefined) setSueldoQuincenal(parsed.sueldoQuincenal);
           } catch (e) {
             console.error('Error parseando datos locales:', e);
           }
@@ -156,10 +163,11 @@ export default function App() {
         inversiones,
         gastosFijos,
         saldoBaseEfectivo,
+        sueldoQuincenal,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     }
-  }, [isDemoMode, tarjetas, comprasMsi, transacciones, inversiones, gastosFijos, saldoBaseEfectivo]);
+  }, [isDemoMode, tarjetas, comprasMsi, transacciones, inversiones, gastosFijos, saldoBaseEfectivo, sueldoQuincenal]);
 
   // Cargar datos reales de Supabase
   const fetchSupabaseData = async (userId: string) => {
@@ -255,6 +263,39 @@ export default function App() {
         console.error('Error recuperando saldo digital:', err);
       }
       setSaldoBaseEfectivo(saldoCargado);
+
+      // Cargar Sueldo Quincenal configurado (persistencia en Supabase y local)
+      let sueldoRecuperado = 6750;
+      try {
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser?.user?.user_metadata?.sueldo_quincenal !== undefined) {
+          sueldoRecuperado = Number(authUser.user.user_metadata.sueldo_quincenal);
+        } else {
+          try {
+            const { data: configData } = await supabase
+              .from('configuracion_usuario')
+              .select('sueldo_quincenal')
+              .eq('user_id', userId)
+              .maybeSingle();
+            if (configData && configData.sueldo_quincenal !== undefined) {
+              sueldoRecuperado = Number(configData.sueldo_quincenal);
+            } else {
+              const localSavedSueldo = localStorage.getItem(`finanzas_sueldo_quincenal_${userId}`);
+              if (localSavedSueldo !== null) {
+                sueldoRecuperado = parseFloat(localSavedSueldo);
+              }
+            }
+          } catch {
+            const localSavedSueldo = localStorage.getItem(`finanzas_sueldo_quincenal_${userId}`);
+            if (localSavedSueldo !== null) {
+              sueldoRecuperado = parseFloat(localSavedSueldo);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error recuperando sueldo quincenal:', err);
+      }
+      setSueldoQuincenal(isNaN(sueldoRecuperado) ? 6750 : sueldoRecuperado);
     } catch (error) {
       console.error('Error fetching Supabase data:', error);
     }
@@ -277,16 +318,16 @@ export default function App() {
     return tarjetas.map((t) => calcularResumenTarjeta(t, comprasMsi));
   }, [tarjetas, comprasMsi]);
 
-  // Cálculo de Radar Quincenal ($6,750 quincenal), Proyección y Gasto Diario Permitido
+  // Cálculo de Radar Quincenal (pago quincenal configurable: $0 o $6,750 o personalizado)
   const infoQuincena = useMemo(() => {
     return calcularInfoQuincena(
       new Date(),
       metricas.margenDespuesDeGastosFijos,
-      6750,
+      sueldoQuincenal,
       metricas.deudaTotalConGastosFijos,
       metricas.saldoEfectivoDebito
     );
-  }, [metricas.margenDespuesDeGastosFijos, metricas.deudaTotalConGastosFijos, metricas.saldoEfectivoDebito]);
+  }, [metricas.margenDespuesDeGastosFijos, sueldoQuincenal, metricas.deudaTotalConGastosFijos, metricas.saldoEfectivoDebito]);
 
   // 3. Manejadores de acciones (Transacciones, Tarjetas, MSI, Inversiones, Gastos Fijos)
   const handleRegistrarTransaccion = async (data: {
@@ -405,6 +446,46 @@ export default function App() {
         console.error('Error guardando saldo digital:', err);
       }
     }
+  };
+
+  const handleActualizarSueldoQuincenal = async (nuevoMonto: number) => {
+    const montoSanitizado = Math.max(0, parseMonto(nuevoMonto));
+    setSueldoQuincenal(montoSanitizado);
+
+    if (user) {
+      localStorage.setItem(`finanzas_sueldo_quincenal_${user.id}`, montoSanitizado.toString());
+    } else {
+      localStorage.setItem('finanzas_sueldo_quincenal_demo', montoSanitizado.toString());
+    }
+
+    if (user && !isDemoMode && isSupabaseConfigured) {
+      try {
+        await supabase.auth.updateUser({
+          data: { sueldo_quincenal: montoSanitizado },
+        });
+
+        try {
+          await supabase.from('configuracion_usuario').upsert({
+            user_id: user.id,
+            sueldo_quincenal: montoSanitizado,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (_tErr) {
+          // Opcional si la tabla aún no se ha creado
+        }
+      } catch (err) {
+        console.error('Error persistiendo sueldo quincenal en Supabase:', err);
+      }
+    }
+
+    setSueldoGuardadoToast(
+      montoSanitizado === 0
+        ? 'Pago de quincena en $0.00 guardado en base de datos'
+        : `Pago de quincena en ${formatCurrency(montoSanitizado)} guardado en base de datos`
+    );
+    setTimeout(() => {
+      setSueldoGuardadoToast(null);
+    }, 3500);
   };
 
   const handlePagarTarjeta = (tarjetaId: string, _nombreTarjeta: string, montoSugerido: number) => {
@@ -889,7 +970,7 @@ export default function App() {
             {/* Fila 1: Cuenta regresiva y Presupuesto diario */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-5 border-b border-indigo-500/20">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     <CalendarClock className="w-4 h-4 text-indigo-400" />
                   </div>
@@ -899,6 +980,52 @@ export default function App() {
                   <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     Día {infoQuincena.diaPago}
                   </span>
+
+                  {/* Selector interactivo de Pago de Quincena: $0 o $6,750 o personalizado */}
+                  <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-indigo-500/30 shadow-inner">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1.5 hidden sm:inline">
+                      Pago:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleActualizarSueldoQuincenal(6750)}
+                      className={`px-2.5 py-0.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        sueldoQuincenal === 6750
+                          ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      }`}
+                      title="Fijar pago quincenal en $6,750 MXN (Normal)"
+                    >
+                      <span>$6,750</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleActualizarSueldoQuincenal(0)}
+                      className={`px-2.5 py-0.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        sueldoQuincenal === 0
+                          ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      }`}
+                      title="Fijar pago quincenal en $0 MXN (Sin pago)"
+                    >
+                      <span>$0</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditSueldoModalOpen(true)}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        sueldoQuincenal !== 6750 && sueldoQuincenal !== 0
+                          ? 'bg-indigo-600 text-white font-bold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                      title="Personalizar monto de quincena en base de datos"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span className="text-[11px]">
+                        {sueldoQuincenal !== 6750 && sueldoQuincenal !== 0 ? formatCurrency(sueldoQuincenal) : 'Editar'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="text-xl sm:text-2xl font-black text-white flex items-baseline gap-2 flex-wrap">
@@ -951,8 +1078,17 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   Proyección Próxima Quincena: ¿Qué tendrías o perderías al pagar deudas y fijos?
                 </span>
-                <span className="text-[11px] text-slate-400">
-                  Sueldo: <strong className="text-emerald-300 font-bold">{formatCurrency(infoQuincena.sueldoQuincenal)}</strong>
+                <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  Sueldo:{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditSueldoModalOpen(true)}
+                    className="text-emerald-300 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer bg-slate-900/60 px-2 py-0.5 rounded-lg border border-indigo-500/30"
+                    title="Clic para cambiar el sueldo quincenal ($0 o $6,750 o personalizado)"
+                  >
+                    <span>{formatCurrency(infoQuincena.sueldoQuincenal)}</span>
+                    <Edit3 className="w-3 h-3 text-slate-400 hover:text-emerald-300" />
+                  </button>
                 </span>
               </div>
 
@@ -987,9 +1123,13 @@ export default function App() {
                     {formatCurrency(infoQuincena.netoQuincenaTrasCompromisos)}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    {infoQuincena.netoQuincenaTrasCompromisos >= 0
-                      ? `De tus ${formatCurrency(infoQuincena.sueldoQuincenal)}, te sobran ${formatCurrency(infoQuincena.netoQuincenaTrasCompromisos)} tras liquidar compromisos`
-                      : 'Tus deudas superan el sueldo de tu quincena'}
+                    {infoQuincena.sueldoQuincenal === 0
+                      ? infoQuincena.netoQuincenaTrasCompromisos < 0
+                        ? `Quincena en $0.00. Compromisos pendientes de ${formatCurrency(Math.abs(infoQuincena.netoQuincenaTrasCompromisos))}`
+                        : 'Quincena en $0.00 sin deudas por liquidar'
+                      : infoQuincena.netoQuincenaTrasCompromisos >= 0
+                        ? `De tus ${formatCurrency(infoQuincena.sueldoQuincenal)}, te sobran ${formatCurrency(infoQuincena.netoQuincenaTrasCompromisos)} tras liquidar compromisos`
+                        : 'Tus deudas superan el sueldo de tu quincena'}
                   </p>
                 </div>
 
@@ -998,7 +1138,9 @@ export default function App() {
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-semibold text-slate-300">Comprometido en Deudas:</span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                      {infoQuincena.porcentajeQuincenaComprometido}% del sueldo
+                      {infoQuincena.sueldoQuincenal > 0
+                        ? `${infoQuincena.porcentajeQuincenaComprometido}% del sueldo`
+                        : 'Sueldo en $0'}
                     </span>
                   </div>
                   <div className="text-2xl font-black text-indigo-200 tracking-tight">
@@ -1046,9 +1188,15 @@ export default function App() {
                   </p>
                 </div>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700 self-start sm:self-auto font-medium">
-                Sueldo próximo: +{formatCurrency(infoQuincena.sueldoQuincenal)}
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditSueldoModalOpen(true)}
+                className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700 self-start sm:self-auto font-medium hover:border-indigo-500/50 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Modificar pago de quincena en base de datos"
+              >
+                <span>Sueldo próximo: +{formatCurrency(infoQuincena.sueldoQuincenal)}</span>
+                <Edit3 className="w-3 h-3 text-slate-400" />
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -1329,6 +1477,7 @@ export default function App() {
         initialMonto={txModalPreset.monto}
         initialModoAjuste={txModalPreset.modoAjuste}
         saldoActualDigital={saldoBaseEfectivo}
+        sueldoQuincenal={sueldoQuincenal}
         onSubmitTransaction={handleRegistrarTransaccion}
         onAddGastoFijo={handleAddGastoFijo}
         onAjustarSaldoDigital={handleActualizarDineroDigital}
@@ -1347,6 +1496,22 @@ export default function App() {
         onUpdateTarjeta={handleUpdateTarjeta}
         onDeleteTarjeta={handleDeleteTarjeta}
       />
+
+      {/* MODAL DE MODIFICACIÓN DE PAGO QUINCENAL (0 o 6,750 o personalizado) */}
+      <EditSueldoModal
+        isOpen={isEditSueldoModalOpen}
+        onClose={() => setIsEditSueldoModalOpen(false)}
+        sueldoActual={sueldoQuincenal}
+        onGuardarSueldo={handleActualizarSueldoQuincenal}
+      />
+
+      {/* TOAST FLOTANTE DE CONFIRMACIÓN DE GUARDADO EN BD */}
+      {sueldoGuardadoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#161F30]/95 border border-emerald-500/60 text-emerald-300 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 max-w-sm sm:max-w-md text-center">
+          <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{sueldoGuardadoToast}</span>
+        </div>
+      )}
     </div>
   );
 }

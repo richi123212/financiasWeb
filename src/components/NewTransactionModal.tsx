@@ -26,6 +26,7 @@ interface NewTransactionModalProps {
   initialMonto?: number;
   initialModoAjuste?: boolean;
   saldoActualDigital?: number;
+  sueldoQuincenal?: number;
   onSubmitTransaction: (data: {
     concepto: string;
     monto: number;
@@ -58,6 +59,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
   initialMonto,
   initialModoAjuste = false,
   saldoActualDigital = 0,
+  sueldoQuincenal = 6750,
   onSubmitTransaction,
   onAddGastoFijo,
   onAjustarSaldoDigital,
@@ -390,7 +392,7 @@ export const NewTransactionModal: React.FC<NewTransactionModalProps> = ({
                 <span>Compromiso por Liquidar en Quincena</span>
               </div>
               <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                Esta deuda (ej. <strong>Flow Fest</strong>, préstamos personales, tandas) se sumará a tus compromisos y se <strong>descontará automáticamente de tu próximo sueldo quincenal ($6,750)</strong> en el Radar de Quincena.
+                Esta deuda (ej. <strong>Flow Fest</strong>, préstamos personales, tandas) se sumará a tus compromisos y se <strong>descontará automáticamente de tu próximo sueldo quincenal ({formatCurrency(sueldoQuincenal)})</strong> en el Radar de Quincena.
               </p>
             </div>
           )}

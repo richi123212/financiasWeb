@@ -75,6 +75,14 @@ CREATE TABLE IF NOT EXISTS public.gym_entrenamientos (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 7. TABLA: configuracion_usuario (Configuración y parámetros: sueldo quincenal, dinero digital)
+CREATE TABLE IF NOT EXISTS public.configuracion_usuario (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    sueldo_quincenal NUMERIC(12, 2) NOT NULL DEFAULT 6750.00 CHECK (sueldo_quincenal >= 0),
+    dinero_actual_digital NUMERIC(12, 2) DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -84,6 +92,7 @@ ALTER TABLE public.transacciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inversiones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gastos_futuros ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gym_entrenamientos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -110,4 +119,8 @@ CREATE POLICY "Usuarios acceden solo a sus gastos futuros" ON public.gastos_futu
 
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus entrenamientos" ON public.gym_entrenamientos;
 CREATE POLICY "Usuarios acceden solo a sus entrenamientos" ON public.gym_entrenamientos
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a su configuracion" ON public.configuracion_usuario;
+CREATE POLICY "Usuarios acceden solo a su configuracion" ON public.configuracion_usuario
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
