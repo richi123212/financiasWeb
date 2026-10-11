@@ -21,7 +21,12 @@ import {
   Check,
   CalendarClock,
   Tag,
+  Calendar as CalendarIcon,
+  List as ListIcon,
 } from 'lucide-react';
+import { CalendarMonthView } from './CalendarMonthView';
+import { VisualDateTimePicker } from './VisualDateTimePicker';
+import { formatDateKey } from '../utils/calendarUtils';
 import type {
   TareaPendiente,
   NivelUrgencia,
@@ -67,7 +72,11 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
   const [filterUrgencia, setFilterUrgencia] = useState<NivelUrgencia | 'todas'>('todas');
   const [filterCategoria, setFilterCategoria] = useState<string>('todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'urgencia' | 'fecha_hora' | 'recientes'>('urgencia');
+  const [sortBy, setSortBy] = useState<'urgencia' | 'fecha_hora' | 'recientes'>('fecha_hora');
+
+  // Modo de visualización en la pestaña Calendarizadas
+  const [vistaCalendarizada, setVistaCalendarizada] = useState<'calendario' | 'lista'>('calendario');
+  const [filterRangoFecha, setFilterRangoFecha] = useState<'todas' | 'vencidas' | 'hoy' | 'semana' | 'mes' | 'futuras'>('todas');
 
   // Input de captura rápida
   const [quickTitulo, setQuickTitulo] = useState('');
@@ -299,15 +308,25 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
   };
 
   // 3. Abrir Modal para Crear o Editar
-  const abrirModalParaCrear = () => {
+  const abrirModalParaCrear = (fechaInicial?: string) => {
     setEditingTarea(null);
     setFormTitulo('');
     setFormDescripcion('');
-    setFormEsCalendarizada(false);
-    // Pre-seleccionar fecha y hora de hoy más 2 horas
-    const sugerida = new Date();
-    sugerida.setHours(sugerida.getHours() + 2, 0, 0, 0);
-    setFormFechaHora(sugerida.toISOString().slice(0, 16));
+    setFormEsCalendarizada(Boolean(fechaInicial) || activeTab === 'calendarizadas');
+    
+    let sugerida = new Date();
+    if (fechaInicial) {
+      const [y, m, d] = fechaInicial.split('-').map(Number);
+      sugerida = new Date(y, m - 1, d, 10, 0, 0);
+    } else {
+      sugerida.setHours(sugerida.getHours() + 2, 0, 0, 0);
+    }
+    const yStr = sugerida.getFullYear();
+    const mStr = String(sugerida.getMonth() + 1).padStart(2, '0');
+    const dStr = String(sugerida.getDate()).padStart(2, '0');
+    const hStr = String(sugerida.getHours()).padStart(2, '0');
+    const minStr = String(sugerida.getMinutes()).padStart(2, '0');
+    setFormFechaHora(`${yStr}-${mStr}-${dStr}T${hStr}:${minStr}`);
     setFormUrgencia('media');
     setFormCategoria('General');
     setFormAdjuntos([]);
@@ -559,7 +578,34 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
         if (activeTab === 'generales') {
           if (t.es_calendarizada || t.completada) return false;
         } else if (activeTab === 'calendarizadas') {
-          if (!t.es_calendarizada || t.completada) return false;
+          if (!t.es_calendarizada) return false;
+
+          // Filtro por rango de fecha en Calendarizadas
+          if (filterRangoFecha !== 'todas') {
+            if (!t.fecha_hora) return false;
+            const f = new Date(t.fecha_hora);
+            const ahora = new Date();
+            const hoyKey = formatDateKey(ahora);
+            const tKey = formatDateKey(f);
+
+            if (filterRangoFecha === 'vencidas') {
+              if (t.completada || f.getTime() >= ahora.getTime()) return false;
+            } else if (filterRangoFecha === 'hoy') {
+              if (tKey !== hoyKey) return false;
+            } else if (filterRangoFecha === 'semana') {
+              const finSemana = new Date(ahora);
+              finSemana.setDate(ahora.getDate() + 7);
+              if (f.getTime() < ahora.getTime() - 24 * 3600 * 1000 || f.getTime() > finSemana.getTime()) {
+                return false;
+              }
+            } else if (filterRangoFecha === 'mes') {
+              if (f.getMonth() !== ahora.getMonth() || f.getFullYear() !== ahora.getFullYear()) {
+                return false;
+              }
+            } else if (filterRangoFecha === 'futuras') {
+              if (f.getTime() <= ahora.getTime()) return false;
+            }
+          }
         } else if (activeTab === 'completadas') {
           if (!t.completada) return false;
         }
@@ -589,6 +635,14 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
         // Las tareas pendientes van primero si la vista incluye ambas
         if (a.completada !== b.completada) {
           return a.completada ? 1 : -1;
+        }
+
+        // En la pestaña calendarizadas, ordenar por fecha y hora más próxima
+        if (activeTab === 'calendarizadas') {
+          if (a.fecha_hora && b.fecha_hora) {
+            const diff = new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime();
+            if (diff !== 0) return diff;
+          }
         }
 
         if (sortBy === 'urgencia') {
@@ -679,7 +733,7 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
 
           {/* Botón Principal + Nueva Tarea */}
           <button
-            onClick={abrirModalParaCrear}
+            onClick={() => abrirModalParaCrear()}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -986,12 +1040,77 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
             ))}
           </select>
         </div>
+
+        {/* Sub-barra especial de la pestaña Calendarizadas: Toggle Vista y Filtro de Fechas */}
+        {activeTab === 'calendarizadas' && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#101627] border border-indigo-500/30 shadow-lg">
+            {/* Toggle Vista Lista vs Vista Calendario Mensual */}
+            <div className="flex items-center gap-1 bg-[#090D18] p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setVistaCalendarizada('calendario')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  vistaCalendarizada === 'calendario'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Calendario Mensual</span>
+              </button>
+              <button
+                onClick={() => setVistaCalendarizada('lista')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  vistaCalendarizada === 'lista'
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ListIcon className="w-3.5 h-3.5" />
+                <span>Vista Lista</span>
+              </button>
+            </div>
+
+            {/* Filtros de Rango de Fecha */}
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-400 mr-1 hidden md:inline">
+                Periodo:
+              </span>
+              {[
+                { id: 'todas', label: 'Todas' },
+                { id: 'vencidas', label: '🔴 Vencidas' },
+                { id: 'hoy', label: '🟡 Hoy' },
+                { id: 'semana', label: '📅 Esta Semana' },
+                { id: 'mes', label: '🗓️ Este Mes' },
+                { id: 'futuras', label: 'Próximas' },
+              ].map((rf) => (
+                <button
+                  key={rf.id}
+                  onClick={() => setFilterRangoFecha(rf.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    filterRangoFecha === rf.id
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-[#090D18] text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {rf.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* LISTA PRINCIPAL DE TARJETAS DE TAREA                                 */}
+      {/* CONTENIDO PRINCIPAL: CALENDARIO MENSUAL O LISTA DE TAREAS           */}
       {/* -------------------------------------------------------------------- */}
-      {tareasFiltradas.length === 0 ? (
+      {activeTab === 'calendarizadas' && vistaCalendarizada === 'calendario' ? (
+        <CalendarMonthView
+          tareas={tareasFiltradas}
+          onToggleCompletada={handleToggleCompletada}
+          onEditarTarea={abrirModalParaEditar}
+          onCrearTareaParaFecha={(dateKey) => abrirModalParaCrear(dateKey)}
+        />
+      ) : tareasFiltradas.length === 0 ? (
         <div className="rounded-3xl bg-[#121728] border border-slate-800 p-12 text-center space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
             <CheckSquare className="w-8 h-8" />
@@ -1003,7 +1122,7 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
             </p>
           </div>
           <button
-            onClick={abrirModalParaCrear}
+            onClick={() => abrirModalParaCrear()}
             className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
@@ -1340,58 +1459,13 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
                   />
                 </div>
 
-                {/* Si es calendarizada, mostrar selector de fecha y hora */}
+                {/* Si es calendarizada, mostrar selector de fecha y hora táctil */}
                 {formEsCalendarizada && (
                   <div className="space-y-2 pt-2 border-t border-slate-800">
-                    <label className="text-xs font-semibold text-slate-300 block">
-                      Fecha y Hora programada
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required={formEsCalendarizada}
+                    <VisualDateTimePicker
                       value={formFechaHora}
-                      onChange={(e) => setFormFechaHora(e.target.value)}
-                      className="w-full bg-[#151B2E] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                      onChange={(newVal) => setFormFechaHora(newVal)}
                     />
-
-                    {/* Accesos rápidos de horario */}
-                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const hoy = new Date();
-                          hoy.setHours(18, 0, 0, 0);
-                          setFormFechaHora(hoy.toISOString().slice(0, 16));
-                        }}
-                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 cursor-pointer"
-                      >
-                        Hoy 6:00 PM
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const man = new Date();
-                          man.setDate(man.getDate() + 1);
-                          man.setHours(9, 0, 0, 0);
-                          setFormFechaHora(man.toISOString().slice(0, 16));
-                        }}
-                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 cursor-pointer"
-                      >
-                        Mañana 9:00 AM
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const man = new Date();
-                          man.setDate(man.getDate() + 1);
-                          man.setHours(18, 0, 0, 0);
-                          setFormFechaHora(man.toISOString().slice(0, 16));
-                        }}
-                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 cursor-pointer"
-                      >
-                        Mañana 6:00 PM
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
