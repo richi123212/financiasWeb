@@ -155,3 +155,35 @@ export interface PlantillaRutina {
     objetivo?: string;
   }[];
 }
+
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE TAREAS, PENDIENTES & AGENDA
+// ----------------------------------------------------
+export type NivelUrgencia = 'baja' | 'media' | 'alta' | 'urgente';
+
+export interface AdjuntoTarea {
+  id: string;
+  nombre: string;
+  tipo: 'archivo' | 'enlace' | 'imagen';
+  url: string;
+  tamano?: number;
+  previewUrl?: string;
+  created_at?: string;
+}
+
+export interface TareaPendiente {
+  id: string;
+  user_id: string;
+  titulo: string;
+  descripcion?: string;
+  completada: boolean;
+  es_calendarizada: boolean;
+  fecha_hora?: string | null;
+  urgencia: NivelUrgencia;
+  categoria: string;
+  adjuntos: AdjuntoTarea[];
+  completada_en?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+

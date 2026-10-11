@@ -83,6 +83,29 @@ CREATE TABLE IF NOT EXISTS public.configuracion_usuario (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 8. TABLA: tareas_pendientes (Lista de cosas por hacer, calendarizadas con fecha/hora, urgencia y adjuntos)
+CREATE TABLE IF NOT EXISTS public.tareas_pendientes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    completada BOOLEAN NOT NULL DEFAULT false,
+    es_calendarizada BOOLEAN NOT NULL DEFAULT false,
+    fecha_hora TIMESTAMP WITH TIME ZONE,
+    urgencia TEXT NOT NULL DEFAULT 'media' CHECK (urgencia IN ('baja', 'media', 'alta', 'urgente')),
+    categoria TEXT NOT NULL DEFAULT 'General',
+    adjuntos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    completada_en TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices de alto rendimiento para consultas en tiempo real y filtros
+CREATE INDEX IF NOT EXISTS idx_tareas_user_id ON public.tareas_pendientes(user_id);
+CREATE INDEX IF NOT EXISTS idx_tareas_fecha_hora ON public.tareas_pendientes(fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_tareas_completada ON public.tareas_pendientes(completada);
+CREATE INDEX IF NOT EXISTS idx_tareas_urgencia ON public.tareas_pendientes(urgencia);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -93,6 +116,7 @@ ALTER TABLE public.inversiones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gastos_futuros ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gym_entrenamientos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tareas_pendientes ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -124,3 +148,8 @@ CREATE POLICY "Usuarios acceden solo a sus entrenamientos" ON public.gym_entrena
 DROP POLICY IF EXISTS "Usuarios acceden solo a su configuracion" ON public.configuracion_usuario;
 CREATE POLICY "Usuarios acceden solo a su configuracion" ON public.configuracion_usuario
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus tareas" ON public.tareas_pendientes;
+CREATE POLICY "Usuarios acceden solo a sus tareas" ON public.tareas_pendientes
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+

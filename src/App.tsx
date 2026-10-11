@@ -54,6 +54,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { Login } from './components/Login';
 import { ModuleHub } from './components/ModuleHub';
 import { GymTracker } from './components/GymTracker';
+import { TaskTracker } from './components/TaskTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
@@ -62,7 +63,7 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
-  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym'>('hub');
+  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas'>('hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -751,7 +752,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
-        moduloActivo={currentModule === 'gym' ? 'gym' : 'finanzas'}
+        moduloActivo={currentModule === 'gym' ? 'gym' : currentModule === 'tareas' ? 'tareas' : 'finanzas'}
         onCambiarModulo={(mod) => setCurrentModule(mod)}
       />
 
@@ -759,6 +760,8 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
         {currentModule === 'gym' ? (
           <GymTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'tareas' ? (
+          <TaskTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : (
           <>
             {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}
