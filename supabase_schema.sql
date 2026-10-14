@@ -106,6 +106,31 @@ CREATE INDEX IF NOT EXISTS idx_tareas_fecha_hora ON public.tareas_pendientes(fec
 CREATE INDEX IF NOT EXISTS idx_tareas_completada ON public.tareas_pendientes(completada);
 CREATE INDEX IF NOT EXISTS idx_tareas_urgencia ON public.tareas_pendientes(urgencia);
 
+-- 9. TABLA: recetas_cocina (Recetario, platillos, ingredientes, pasos detallados y tiempos de cocción)
+CREATE TABLE IF NOT EXISTS public.recetas_cocina (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT NOT NULL DEFAULT 'Carnes & Res',
+    tiempo_min INTEGER NOT NULL DEFAULT 15 CHECK (tiempo_min >= 1),
+    porciones INTEGER NOT NULL DEFAULT 1 CHECK (porciones >= 1),
+    dificultad TEXT NOT NULL DEFAULT 'facil' CHECK (dificultad IN ('facil', 'intermedio', 'dificil')),
+    calorias_aprox INTEGER CHECK (calorias_aprox >= 0),
+    ingredientes JSONB NOT NULL DEFAULT '[]'::jsonb,
+    pasos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    notas TEXT,
+    etiquetas JSONB NOT NULL DEFAULT '[]'::jsonb,
+    es_favorita BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices para búsqueda rápida en recetas
+CREATE INDEX IF NOT EXISTS idx_recetas_user_id ON public.recetas_cocina(user_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_categoria ON public.recetas_cocina(categoria);
+CREATE INDEX IF NOT EXISTS idx_recetas_es_favorita ON public.recetas_cocina(es_favorita);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -117,6 +142,7 @@ ALTER TABLE public.gastos_futuros ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gym_entrenamientos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tareas_pendientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recetas_cocina ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -152,4 +178,9 @@ CREATE POLICY "Usuarios acceden solo a su configuracion" ON public.configuracion
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus tareas" ON public.tareas_pendientes;
 CREATE POLICY "Usuarios acceden solo a sus tareas" ON public.tareas_pendientes
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus recetas" ON public.recetas_cocina;
+CREATE POLICY "Usuarios acceden solo a sus recetas" ON public.recetas_cocina
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 

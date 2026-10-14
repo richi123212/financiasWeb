@@ -187,3 +187,44 @@ export interface TareaPendiente {
   updated_at?: string;
 }
 
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE RECETAS & COCINA
+// ----------------------------------------------------
+export type DificultadReceta = 'facil' | 'intermedio' | 'dificil';
+
+export interface IngredienteReceta {
+  id: string;
+  nombre: string;
+  cantidad: string;
+  opcional?: boolean;
+}
+
+export interface PasoReceta {
+  id: string;
+  orden: number;
+  titulo?: string;
+  instruccion: string;
+  minutos_espera?: number;
+  tip?: string;
+}
+
+export interface RecetaCocina {
+  id: string;
+  user_id: string;
+  titulo: string;
+  descripcion?: string;
+  categoria: string;
+  tiempo_min: number;
+  porciones: number;
+  dificultad: DificultadReceta;
+  calorias_aprox?: number;
+  ingredientes: IngredienteReceta[];
+  pasos: PasoReceta[];
+  notas?: string;
+  etiquetas: string[];
+  es_favorita: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+

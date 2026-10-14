@@ -55,6 +55,7 @@ import { Login } from './components/Login';
 import { ModuleHub } from './components/ModuleHub';
 import { GymTracker } from './components/GymTracker';
 import { TaskTracker } from './components/TaskTracker';
+import { RecipeTracker } from './components/RecipeTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
@@ -63,7 +64,7 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
-  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas'>('hub');
+  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas' | 'recetas'>('hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -752,7 +753,15 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
-        moduloActivo={currentModule === 'gym' ? 'gym' : currentModule === 'tareas' ? 'tareas' : 'finanzas'}
+        moduloActivo={
+          currentModule === 'gym'
+            ? 'gym'
+            : currentModule === 'tareas'
+            ? 'tareas'
+            : currentModule === 'recetas'
+            ? 'recetas'
+            : 'finanzas'
+        }
         onCambiarModulo={(mod) => setCurrentModule(mod)}
       />
 
@@ -762,6 +771,8 @@ export default function App() {
           <GymTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'tareas' ? (
           <TaskTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'recetas' ? (
+          <RecipeTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : (
           <>
             {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}

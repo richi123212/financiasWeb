@@ -9,6 +9,7 @@ import {
   Dumbbell,
   CheckSquare,
   LayoutGrid,
+  ChefHat,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -19,8 +20,8 @@ interface NavbarProps {
   activeTab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones';
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
-  moduloActivo: 'finanzas' | 'gym' | 'tareas';
-  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'hub') => void;
+  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas';
+  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'hub') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -84,9 +85,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       G<span className="text-indigo-400">YM</span>
                     </>
-                  ) : (
+                  ) : moduloActivo === 'tareas' ? (
                     <>
                       Pen<span className="text-amber-400">dientes</span>
+                    </>
+                  ) : (
+                    <>
+                      Re<span className="text-orange-400">cetas</span>
                     </>
                   )}
                 </span>
@@ -97,42 +102,54 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes) */}
-          <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner">
+          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas) */}
+          <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar">
             <button
               onClick={() => onCambiarModulo('finanzas')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'finanzas'
                   ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Wallet className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Finanzas</span>
+              <span className="hidden sm:inline">Finanzas</span>
             </button>
 
             <button
               onClick={() => onCambiarModulo('gym')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'gym'
                   ? 'bg-gradient-to-r from-indigo-500/25 to-purple-500/25 text-indigo-300 border border-indigo-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Dumbbell className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">GYM</span>
+              <span className="hidden sm:inline">GYM</span>
             </button>
 
             <button
               onClick={() => onCambiarModulo('tareas')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'tareas'
                   ? 'bg-gradient-to-r from-amber-500/25 to-orange-500/25 text-amber-300 border border-amber-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <CheckSquare className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Pendientes</span>
+              <span className="hidden sm:inline">Pendientes</span>
+            </button>
+
+            <button
+              onClick={() => onCambiarModulo('recetas')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'recetas'
+                  ? 'bg-gradient-to-r from-orange-500/25 to-amber-500/25 text-orange-300 border border-orange-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ChefHat className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Recetas</span>
             </button>
           </div>
 
@@ -158,7 +175,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {user?.nombre || user?.email || 'Richi'}
                 </span>
                 <span className="text-[10px] text-slate-400">
-                  {moduloActivo === 'finanzas' ? 'Finanzas' : moduloActivo === 'gym' ? 'Fuerza & Pesos' : 'Tareas & Agenda'}
+                  {moduloActivo === 'finanzas'
+                    ? 'Finanzas'
+                    : moduloActivo === 'gym'
+                    ? 'Fuerza & Pesos'
+                    : moduloActivo === 'tareas'
+                    ? 'Tareas & Agenda'
+                    : 'Recetas & Cocina'}
                 </span>
               </div>
 
@@ -172,6 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
         </div>
+
 
         {/* Pestañas secundarias de Finanzas (solo cuando Finanzas está activo) */}
         {moduloActivo === 'finanzas' && (
