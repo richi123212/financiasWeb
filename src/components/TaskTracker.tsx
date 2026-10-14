@@ -41,6 +41,7 @@ import {
   formatFechaHoraRelativa,
 } from '../lib/taskData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { generateUUID, isUUID } from '../lib/scheduleData';
 
 const STORAGE_KEY = 'finanzshield_tareas_v1';
 
@@ -218,9 +219,14 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
   const guardarTareaEnBD = async (tarea: TareaPendiente, esNueva: boolean) => {
     if (isSupabaseConfigured && user.id !== 'demo-user') {
       try {
+        const taskId = isUUID(tarea.id) ? tarea.id : generateUUID();
+        if (taskId !== tarea.id) {
+          tarea.id = taskId;
+        }
+
         if (esNueva) {
           const { error } = await supabase.from('tareas_pendientes').insert({
-            id: tarea.id,
+            id: taskId,
             user_id: user.id,
             titulo: tarea.titulo,
             descripcion: tarea.descripcion || '',
@@ -234,22 +240,24 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
           });
           if (error) console.warn('Aviso guardando tarea en Supabase:', error);
         } else {
-          const { error } = await supabase
-            .from('tareas_pendientes')
-            .update({
-              titulo: tarea.titulo,
-              descripcion: tarea.descripcion,
-              completada: tarea.completada,
-              es_calendarizada: tarea.es_calendarizada,
-              fecha_hora: tarea.fecha_hora,
-              urgencia: tarea.urgencia,
-              categoria: tarea.categoria,
-              adjuntos: tarea.adjuntos,
-              completada_en: tarea.completada_en,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', tarea.id);
-          if (error) console.warn('Aviso actualizando tarea en Supabase:', error);
+          if (isUUID(tarea.id)) {
+            const { error } = await supabase
+              .from('tareas_pendientes')
+              .update({
+                titulo: tarea.titulo,
+                descripcion: tarea.descripcion,
+                completada: tarea.completada,
+                es_calendarizada: tarea.es_calendarizada,
+                fecha_hora: tarea.fecha_hora,
+                urgencia: tarea.urgencia,
+                categoria: tarea.categoria,
+                adjuntos: tarea.adjuntos,
+                completada_en: tarea.completada_en,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', tarea.id);
+            if (error) console.warn('Aviso actualizando tarea en Supabase:', error);
+          }
         }
       } catch (e) {
         console.warn('Falla de red con Supabase al guardar tarea:', e);
@@ -263,7 +271,7 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
     if (!quickTitulo.trim()) return;
 
     const nuevaTarea: TareaPendiente = {
-      id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: generateUUID(),
       user_id: user.id,
       titulo: quickTitulo.trim(),
       descripcion: '',
@@ -375,7 +383,7 @@ export const TaskTracker: React.FC<TaskTrackerProps> = ({ user }) => {
     } else {
       // Creación
       const nueva: TareaPendiente = {
-        id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        id: generateUUID(),
         user_id: user.id,
         titulo: formTitulo.trim(),
         descripcion: formDescripcion.trim(),

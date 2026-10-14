@@ -44,7 +44,7 @@ export const CONFIG_DIFICULTAD: Record<
 
 export const INITIAL_RECETAS: RecetaCocina[] = [
   {
-    id: 'receta-bistec-1',
+    id: 'a1b2c3d4-0001-4000-8000-000000000001',
     user_id: 'demo-user',
     titulo: 'Bistec Jugoso a la Plancha',
     descripcion: 'Preparación clásica con sazón en polvo (el negro), sal y término dorado perfecto en sartén.',
@@ -117,7 +117,7 @@ export const INITIAL_RECETAS: RecetaCocina[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'receta-pollo-2',
+    id: 'a1b2c3d4-0001-4000-8000-000000000002',
     user_id: 'demo-user',
     titulo: 'Pechuga Asada al Limón y Pimienta',
     descripcion: 'Pechuga de pollo extra jugosa marinada con limón, ajo y orégano para el plan fitness.',
@@ -170,7 +170,7 @@ export const INITIAL_RECETAS: RecetaCocina[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'receta-desayuno-3',
+    id: 'a1b2c3d4-0001-4000-8000-000000000003',
     user_id: 'demo-user',
     titulo: 'Huevos Revueltos con Espinacas y Queso',
     descripcion: 'Desayuno nutritivo cargado de micronutrientes, listo en menos de 10 minutos.',
@@ -223,7 +223,7 @@ export const INITIAL_RECETAS: RecetaCocina[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'receta-avena-4',
+    id: 'a1b2c3d4-0001-4000-8000-000000000004',
     user_id: 'demo-user',
     titulo: 'Avena Proteica Pre-Entreno con Plátano',
     descripcion: 'Energía sostenida para tus sesiones de gimnasio con avena, proteína en polvo y canela.',

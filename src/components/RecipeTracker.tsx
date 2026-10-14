@@ -38,6 +38,7 @@ import {
   STORAGE_KEY_RECETAS,
 } from '../lib/recipeData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { generateUUID, isUUID } from '../lib/scheduleData';
 
 interface RecipeTrackerProps {
   user: UserProfile;
@@ -175,10 +176,13 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
           try {
             const seedToUpload = INITIAL_RECETAS.map((r) => ({
               ...r,
-              id: undefined,
+              id: isUUID(r.id) ? r.id : generateUUID(),
               user_id: user.id,
             }));
-            await supabase.from('recetas_cocina').insert(seedToUpload);
+            const { error: seedErr } = await supabase.from('recetas_cocina').insert(seedToUpload);
+            if (!seedErr) {
+              setRecetas(seedToUpload);
+            }
           } catch {
             // Ignorar
           }
@@ -321,12 +325,10 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
     setFormNotas('');
     setFormEtiquetas(['Rápido', 'Sartén']);
     setFormIngredientes([
-      { id: 'ing-1', nombre: '', cantidad: '' },
-      { id: 'ing-2', nombre: '', cantidad: '' },
+      { id: generateUUID(), nombre: '', cantidad: '' },
     ]);
     setFormPasos([
-      { id: 'paso-1', orden: 1, instruccion: '', minutos_espera: 0 },
-      { id: 'paso-2', orden: 2, instruccion: '', minutos_espera: 0 },
+      { id: generateUUID(), orden: 1, instruccion: '', minutos_espera: 0 },
     ]);
     setIsModalOpen(true);
   };
@@ -360,19 +362,19 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
     e.preventDefault();
 
     if (!formTitulo.trim()) {
-      showToast('Por favor escribe un título para el platillo');
+      showToast('⚠️ Por favor escribe un título para el platillo');
       return;
     }
 
     const validIngredientes = formIngredientes
       .filter((i) => i.nombre.trim().length > 0)
-      .map((i, idx) => ({
+      .map((i) => ({
         ...i,
-        id: i.id || `ing-${idx + 1}-${Date.now()}`,
+        id: i.id || generateUUID(),
       }));
 
     if (validIngredientes.length === 0) {
-      showToast('Agrega al menos un ingrediente para tu receta');
+      showToast('⚠️ Agrega al menos un ingrediente para tu receta');
       return;
     }
 
@@ -381,17 +383,19 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
       .map((p, idx) => ({
         ...p,
         orden: idx + 1,
-        id: p.id || `paso-${idx + 1}-${Date.now()}`,
+        id: p.id || generateUUID(),
         minutos_espera: Number(p.minutos_espera) || 0,
       }));
 
     if (validPasos.length === 0) {
-      showToast('Agrega al menos un paso o instrucción de preparación');
+      showToast('⚠️ Agrega al menos un paso o instrucción de preparación');
       return;
     }
 
+    const recipeId = editingReceta && isUUID(editingReceta.id) ? editingReceta.id : generateUUID();
+
     const nuevaReceta: RecetaCocina = {
-      id: editingReceta ? editingReceta.id : `receta-${Date.now()}`,
+      id: recipeId,
       user_id: user?.id || 'demo-user',
       titulo: formTitulo.trim(),
       descripcion: formDescripcion.trim() || undefined,
@@ -409,37 +413,41 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Actualización local
+    // Actualización local inmediata para feedback instantáneo
     if (editingReceta) {
       setRecetas((prev) => prev.map((r) => (r.id === editingReceta.id ? nuevaReceta : r)));
-      showToast('¡Receta actualizada con éxito!');
+      showToast('✅ ¡Receta actualizada con éxito!');
     } else {
       setRecetas((prev) => [nuevaReceta, ...prev]);
-      showToast('¡Receta guardada exitosamente!');
+      showToast('✅ ¡Receta guardada exitosamente!');
     }
 
     setIsModalOpen(false);
 
-    // Sincronizar en segundo plano con Supabase si está disponible
+    // Sincronizar con Supabase si está autenticado
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
-        await supabase.from('recetas_cocina').upsert({
+        const { error } = await supabase.from('recetas_cocina').upsert({
           id: nuevaReceta.id,
           user_id: user.id,
           titulo: nuevaReceta.titulo,
-          descripcion: nuevaReceta.descripcion,
+          descripcion: nuevaReceta.descripcion || null,
           categoria: nuevaReceta.categoria,
           tiempo_min: nuevaReceta.tiempo_min,
           porciones: nuevaReceta.porciones,
           dificultad: nuevaReceta.dificultad,
-          calorias_aprox: nuevaReceta.calorias_aprox,
+          calorias_aprox: nuevaReceta.calorias_aprox || null,
           ingredientes: nuevaReceta.ingredientes,
           pasos: nuevaReceta.pasos,
-          notas: nuevaReceta.notas,
+          notas: nuevaReceta.notas || null,
           etiquetas: nuevaReceta.etiquetas,
           es_favorita: nuevaReceta.es_favorita,
           updated_at: new Date().toISOString(),
         });
+        if (error) {
+          console.warn('Aviso guardando receta en Supabase:', error);
+          showToast(`⚠️ Guardado local (Supabase: ${error.message})`);
+        }
       } catch (err) {
         console.warn('Error al sincronizar receta con Supabase:', err);
       }
@@ -458,11 +466,13 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
 
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
-        await supabase
-          .from('recetas_cocina')
-          .update({ es_favorita: nuevoEstado, updated_at: new Date().toISOString() })
-          .eq('id', recetaId)
-          .eq('user_id', user.id);
+        if (isUUID(recetaId)) {
+          await supabase
+            .from('recetas_cocina')
+            .update({ es_favorita: nuevoEstado, updated_at: new Date().toISOString() })
+            .eq('id', recetaId)
+            .eq('user_id', user.id);
+        }
       } catch {
         // Ignorar
       }
@@ -478,11 +488,19 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
 
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
-        await supabase
-          .from('recetas_cocina')
-          .delete()
-          .eq('id', recetaId)
-          .eq('user_id', user.id);
+        if (isUUID(recetaId)) {
+          await supabase
+            .from('recetas_cocina')
+            .delete()
+            .eq('id', recetaId)
+            .eq('user_id', user.id);
+        } else {
+          await supabase
+            .from('recetas_cocina')
+            .delete()
+            .eq('titulo', titulo)
+            .eq('user_id', user.id);
+        }
       } catch {
         // Ignorar
       }
@@ -1069,7 +1087,7 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
               </button>
             </div>
 
-            <form onSubmit={handleGuardarReceta} className="space-y-6">
+            <form onSubmit={handleGuardarReceta} noValidate className="space-y-6">
               {/* Sección 1: Datos Generales */}
               <div className="space-y-4">
                 <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
@@ -1383,7 +1401,6 @@ export const RecipeTracker: React.FC<RecipeTrackerProps> = ({ user }) => {
 
                       <textarea
                         rows={2}
-                        required
                         placeholder="Describe la instrucción detallada..."
                         value={paso.instruccion}
                         onChange={(e) => {
