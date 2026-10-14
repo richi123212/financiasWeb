@@ -15,7 +15,6 @@ import {
   Play,
   RotateCcw,
   Heart,
-  Flame,
   BookmarkCheck,
   Clapperboard,
 } from 'lucide-react';
@@ -229,8 +228,8 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
       tipo: formTipo,
       plataforma: formPlataforma,
       estado: formEstado,
-      temporada_actual: formTipo === 'serie' || formTipo === 'anime' ? formTemporada : undefined,
-      capitulo_actual: formTipo === 'serie' || formTipo === 'anime' ? formCapitulo : undefined,
+      temporada_actual: formTipo === 'serie' ? formTemporada : undefined,
+      capitulo_actual: formTipo === 'serie' ? formCapitulo : undefined,
       total_temporadas: formTotalTemporadas ? parseInt(formTotalTemporadas, 10) : undefined,
       total_capitulos: formTotalCapitulos ? parseInt(formTotalCapitulos, 10) : undefined,
       calificacion: formCalificacion,
@@ -269,7 +268,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
     }
   };
 
-  // Incrementar capítulo rápido (+1) para series/animes (¡para que no se te olvide como con Los Simpson!)
+  // Incrementar capítulo rápido (+1) para series (¡para que no se te olvide como con Los Simpson!)
   const handleIncrementarCapitulo = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const item = items.find((it) => it.id === id);
@@ -468,7 +467,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
       const estadoValido = it.estado === 'por_ver' || it.estado === 'viendo';
       if (!estadoValido) return false;
       if (ruletaFiltroTipo === 'pelicula') return it.tipo === 'pelicula' || it.tipo === 'documental';
-      if (ruletaFiltroTipo === 'serie') return it.tipo === 'serie' || it.tipo === 'anime';
+      if (ruletaFiltroTipo === 'serie') return it.tipo === 'serie';
       return true;
     });
   }, [items, ruletaFiltroTipo]);
@@ -558,7 +557,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
               <span>¿Qué veo hoy? — Watchlist & Ruleta de Cine</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Películas, Series & Animes
+              Películas, Series & Documentales
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
               Lleva el control de tus películas pendientes y los capítulos exactos en tus series (ej. Los Simpson). Cuando no sepas qué ver, deja que la ruleta decida por ti.
@@ -724,17 +723,6 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
             <Tv className="w-3.5 h-3.5" />
             <span>Series</span>
           </button>
-          <button
-            onClick={() => setFiltroTipo('anime')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
-              filtroTipo === 'anime'
-                ? 'bg-amber-600 text-white shadow'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>Animes</span>
-          </button>
         </div>
 
         {/* Filtro por Estado */}
@@ -816,7 +804,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
             const plat = CONFIG_PLATAFORMAS[item.plataforma] || CONFIG_PLATAFORMAS.Otro;
             const tipoConfig = CONFIG_TIPOS[item.tipo] || CONFIG_TIPOS.pelicula;
             const estadoConfig = CONFIG_ESTADOS[item.estado] || CONFIG_ESTADOS.por_ver;
-            const esSerie = item.tipo === 'serie' || item.tipo === 'anime';
+            const esSerie = item.tipo === 'serie';
 
             return (
               <div
@@ -1041,7 +1029,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Solo Series / Anime
+                Solo Series
               </button>
             </div>
 
@@ -1123,7 +1111,7 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
                 {editingItem ? 'Editar Título' : 'Nuevo Contenido para Ver'}
               </h2>
               <p className="text-xs text-slate-400">
-                Agrega una película, serie o anime a tu watchlist personal.
+                Agrega una película, serie o documental a tu watchlist personal.
               </p>
             </div>
 
@@ -1154,7 +1142,6 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
                   >
                     <option value="pelicula">🎬 Película</option>
                     <option value="serie">📺 Serie de TV</option>
-                    <option value="anime">🔥 Anime</option>
                     <option value="documental">🌍 Documental</option>
                   </select>
                 </div>
@@ -1213,8 +1200,8 @@ export const WatchlistTracker: React.FC<WatchlistTrackerProps> = ({ user }) => {
                 </div>
               </div>
 
-              {/* Si es serie o anime: Temporada y Capítulo actual (¡Estilo Los Simpson!) */}
-              {(formTipo === 'serie' || formTipo === 'anime') && (
+              {/* Si es serie: Temporada y Capítulo actual (¡Estilo Los Simpson!) */}
+              {formTipo === 'serie' && (
                 <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 space-y-3">
                   <span className="text-xs font-bold text-purple-300 block">
                     ¿En qué capítulo vas? (Para que no se te olvide)

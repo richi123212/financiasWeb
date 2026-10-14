@@ -153,12 +153,12 @@ CREATE INDEX IF NOT EXISTS idx_horarios_user_id ON public.horarios_semanales(use
 CREATE INDEX IF NOT EXISTS idx_horarios_dia_semana ON public.horarios_semanales(dia_semana);
 CREATE INDEX IF NOT EXISTS idx_horarios_hora_inicio ON public.horarios_semanales(hora_inicio);
 
--- 11. TABLA: watchlist_contenido ("¿Qué veo hoy?" - Películas, series, animes, ruleta y seguimiento de capítulos)
+-- 11. TABLA: watchlist_contenido ("¿Qué veo hoy?" - Películas, series, ruleta y seguimiento de capítulos)
 CREATE TABLE IF NOT EXISTS public.watchlist_contenido (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     titulo TEXT NOT NULL,
-    tipo TEXT NOT NULL DEFAULT 'pelicula' CHECK (tipo IN ('pelicula', 'serie', 'anime', 'documental')),
+    tipo TEXT NOT NULL DEFAULT 'pelicula' CHECK (tipo IN ('pelicula', 'serie', 'documental')),
     plataforma TEXT NOT NULL DEFAULT 'Netflix',
     estado TEXT NOT NULL DEFAULT 'por_ver' CHECK (estado IN ('por_ver', 'viendo', 'terminada', 'abandonada')),
     temporada_actual INTEGER DEFAULT 1,

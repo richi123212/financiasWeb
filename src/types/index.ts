@@ -268,7 +268,7 @@ export interface BloqueHorario {
 // ----------------------------------------------------
 // TIPOS PARA EL MÓDULO DE CINE & SERIES ("¿Qué veo hoy?")
 // ----------------------------------------------------
-export type TipoContenido = 'pelicula' | 'serie' | 'anime' | 'documental';
+export type TipoContenido = 'pelicula' | 'serie' | 'documental';
 
 export type EstadoContenido = 'por_ver' | 'viendo' | 'terminada' | 'abandonada';
 
