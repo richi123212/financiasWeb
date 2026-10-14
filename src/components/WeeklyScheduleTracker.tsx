@@ -20,6 +20,7 @@ import {
   Sun,
   LayoutGrid,
   ListOrdered,
+  RotateCcw,
 } from 'lucide-react';
 import type { BloqueHorario, DiaSemana, CategoriaHorario, UserProfile } from '../types';
 import {
@@ -30,6 +31,8 @@ import {
   timeToMinutes,
   getDiaSemanaActual,
   formatTime12h,
+  generateUUID,
+  isUUID,
 } from '../lib/scheduleData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -38,13 +41,18 @@ interface WeeklyScheduleTrackerProps {
 }
 
 export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ user }) => {
-  // 1. Estado de horarios semanales
+  // 1. Estado de horarios semanales: respeta el arreglo vacío [] si el usuario eliminó las actividades
   const [horarios, setHorarios] = useState<BloqueHorario[]>(() => {
     try {
+      const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+      if (localStorage.getItem(clearedKey) === 'true') {
+        return [];
+      }
+      const initialized = localStorage.getItem('finanzshield_horarios_initialized_v1');
       const local = localStorage.getItem(STORAGE_KEY_HORARIOS);
-      if (local) {
+      if (initialized && local !== null) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // Ignorar error al leer de localStorage
@@ -87,6 +95,7 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_HORARIOS, JSON.stringify(horarios));
+      localStorage.setItem('finanzshield_horarios_initialized_v1', 'true');
     } catch {
       // Manejar cuota de almacenamiento llena
     }
@@ -116,11 +125,16 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
           return;
         }
 
+        const seededKey = `finanzshield_horarios_seeded_${user.id}`;
+        const alreadySeeded = localStorage.getItem(seededKey);
+
         if (data && data.length > 0) {
           setHorarios(data as BloqueHorario[]);
+          localStorage.setItem(seededKey, 'true');
           setSyncStatus('online');
-        } else {
-          // Si no hay datos en la nube, sembrar los iniciales
+        } else if (!alreadySeeded) {
+          // Solo la PRIMERA vez absoluta que entra un usuario nuevo sin datos
+          localStorage.setItem(seededKey, 'true');
           setSyncStatus('online');
           try {
             const seedToUpload = INITIAL_HORARIOS.map((h) => ({
@@ -128,10 +142,20 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
               id: undefined,
               user_id: user.id,
             }));
-            await supabase.from('horarios_semanales').insert(seedToUpload);
+            const { data: insertedData } = await supabase
+              .from('horarios_semanales')
+              .insert(seedToUpload)
+              .select('*');
+            if (insertedData && insertedData.length > 0) {
+              setHorarios(insertedData as BloqueHorario[]);
+            }
           } catch {
             // Ignorar
           }
+        } else {
+          // El usuario ya había interactuado y vació intencionalmente sus actividades para empezar de 0
+          setHorarios([]);
+          setSyncStatus('online');
         }
       } catch (err) {
         console.warn('Error conectando a Supabase horarios:', err);
@@ -248,7 +272,7 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
     }
 
     const nuevoBloque: BloqueHorario = {
-      id: editingBloque ? editingBloque.id : `bloque-${Date.now()}`,
+      id: editingBloque ? editingBloque.id : generateUUID(),
       user_id: user?.id || 'demo-user',
       dia_semana: formDia,
       hora_inicio: formHoraInicio,
@@ -268,6 +292,13 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
     } else {
       setHorarios((prev) => [...prev, nuevoBloque]);
       showToast('Actividad agregada al horario');
+    }
+
+    try {
+      const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+      localStorage.removeItem(clearedKey);
+    } catch {
+      // ignore
     }
 
     setIsModalOpen(false);
@@ -294,22 +325,144 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
     }
   };
 
-  // Eliminar Bloque
+  // Eliminar Bloque individual
   const handleEliminarBloque = async (id: string, titulo: string) => {
     if (!window.confirm(`¿Eliminar la actividad "${titulo}"?`)) return;
 
-    setHorarios((prev) => prev.filter((h) => h.id !== id));
+    setHorarios((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      if (updated.length === 0) {
+        try {
+          const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+          localStorage.setItem(clearedKey, 'true');
+        } catch {
+          // ignore
+        }
+      }
+      return updated;
+    });
     showToast('Actividad eliminada');
+
+    if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
+      try {
+        if (isUUID(id)) {
+          await supabase
+            .from('horarios_semanales')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+        } else {
+          await supabase
+            .from('horarios_semanales')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('titulo', titulo);
+        }
+      } catch (err) {
+        console.warn('Error al eliminar bloque en Supabase:', err);
+      }
+    }
+  };
+
+  // Limpiar todas las actividades del día seleccionado
+  const handleLimpiarDia = async () => {
+    const diaInfo = DIAS_SEMANA.find((d) => d.id === diaSeleccionado)?.nombre || diaSeleccionado;
+    if (!window.confirm(`¿Seguro que deseas eliminar todas las actividades del ${diaInfo}? Quedará en 0 actividades este día.`)) {
+      return;
+    }
+
+    setHorarios((prev) => {
+      const updated = prev.filter((h) => h.dia_semana !== diaSeleccionado);
+      if (updated.length === 0) {
+        try {
+          const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+          localStorage.setItem(clearedKey, 'true');
+        } catch {
+          // ignore
+        }
+      }
+      return updated;
+    });
+    showToast(`Horario de ${diaInfo} vaciado (0 actividades)`);
 
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
         await supabase
           .from('horarios_semanales')
           .delete()
-          .eq('id', id)
+          .eq('dia_semana', diaSeleccionado)
           .eq('user_id', user.id);
-      } catch {
-        // Ignorar
+      } catch (err) {
+        console.warn('Error al vaciar día en Supabase:', err);
+      }
+    }
+  };
+
+  // Vaciar TODO el horario de toda la semana para empezar en 0 absoluto
+  const handleVaciarTodoElHorario = async () => {
+    if (!window.confirm('¿Seguro que deseas vaciar TODO el horario semanal? Tu base quedará en 0 actividades para que puedas empezar a planear desde cero.')) {
+      return;
+    }
+
+    setHorarios([]);
+    try {
+      localStorage.setItem(STORAGE_KEY_HORARIOS, JSON.stringify([]));
+      const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+      localStorage.setItem(clearedKey, 'true');
+      const seededKey = `finanzshield_horarios_seeded_${user?.id || 'demo'}`;
+      localStorage.setItem(seededKey, 'true');
+    } catch {
+      // ignore
+    }
+    showToast('Horario completamente vaciado (0 actividades)');
+
+    if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
+      try {
+        await supabase
+          .from('horarios_semanales')
+          .delete()
+          .eq('user_id', user.id);
+      } catch (err) {
+        console.warn('Error al vaciar todo el horario en Supabase:', err);
+      }
+    }
+  };
+
+  // Restaurar la plantilla sugerida si el usuario lo desea
+  const handleRestaurarPlantillaSugerida = async () => {
+    if (!window.confirm('¿Deseas cargar la plantilla sugerida con actividades estándar de lunes a domingo? Reemplazará tu horario actual.')) {
+      return;
+    }
+
+    const nuevaPlantilla = INITIAL_HORARIOS.map((h) => ({
+      ...h,
+      id: generateUUID(),
+      user_id: user?.id || 'demo-user',
+    }));
+
+    setHorarios(nuevaPlantilla);
+    try {
+      const clearedKey = `finanzshield_horarios_user_cleared_${user?.id || 'demo'}`;
+      localStorage.removeItem(clearedKey);
+      localStorage.setItem(STORAGE_KEY_HORARIOS, JSON.stringify(nuevaPlantilla));
+    } catch {
+      // ignore
+    }
+    showToast('Plantilla sugerida cargada con éxito');
+
+    if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
+      try {
+        // Borramos los actuales y subimos la plantilla
+        await supabase.from('horarios_semanales').delete().eq('user_id', user.id);
+        const { data: insertedData } = await supabase
+          .from('horarios_semanales')
+          .insert(nuevaPlantilla)
+          .select('*');
+        if (insertedData && insertedData.length > 0) {
+          setHorarios(insertedData as BloqueHorario[]);
+        }
+      } catch (err) {
+        console.warn('Error al restaurar plantilla en Supabase:', err);
       }
     }
   };
@@ -340,9 +493,9 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
     copyDestinos.forEach((destino) => {
       // Reemplazamos los existentes del día destino con los clonados
       nuevosHorarios = nuevosHorarios.filter((h) => h.dia_semana !== destino);
-      const clones = bloquesOrigen.map((b, idx) => ({
+      const clones = bloquesOrigen.map((b) => ({
         ...b,
-        id: `bloque-${destino}-${Date.now()}-${idx}`,
+        id: generateUUID(),
         dia_semana: destino,
         completado_hoy: false,
         created_at: new Date().toISOString(),
@@ -464,18 +617,41 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
             </div>
 
             {/* Botón Copiar Horario */}
-            <button
-              onClick={() => {
-                setCopyOrigenDia(diaSeleccionado);
-                setCopyDestinos([]);
-                setIsCopyModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all cursor-pointer"
-              title="Copiar horario de un día a otros"
-            >
-              <Copy className="w-4 h-4 text-blue-400" />
-              <span className="hidden sm:inline">Copiar Día</span>
-            </button>
+            {horarios.length > 0 && (
+              <button
+                onClick={() => {
+                  setCopyOrigenDia(diaSeleccionado);
+                  setCopyDestinos([]);
+                  setIsCopyModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all cursor-pointer"
+                title="Copiar horario de un día a otros"
+              >
+                <Copy className="w-4 h-4 text-blue-400" />
+                <span className="hidden sm:inline">Copiar Día</span>
+              </button>
+            )}
+
+            {/* Botón Vaciar Todo (Quedar en 0s) */}
+            {horarios.length > 0 ? (
+              <button
+                onClick={handleVaciarTodoElHorario}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+                title="Vaciar todo el horario para quedar en 0 actividades y planear desde cero"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span className="hidden sm:inline">Vaciar Todo</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleRestaurarPlantillaSugerida}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                title="Cargar la plantilla de rutina sugerida"
+              >
+                <RotateCcw className="w-4 h-4 text-amber-400" />
+                <span>Plantilla Sugerida</span>
+              </button>
+            )}
 
             {/* Botón Agregar Actividad */}
             <button
@@ -686,41 +862,71 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
               </span>
             </h2>
 
-            <button
-              onClick={() => openModalCrear(diaSeleccionado)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Actividad en {DIAS_SEMANA.find((d) => d.id === diaSeleccionado)?.corto}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {bloquesDelDia.length > 0 && (
+                <button
+                  onClick={handleLimpiarDia}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                  title={`Eliminar las actividades de ${DIAS_SEMANA.find((d) => d.id === diaSeleccionado)?.nombre}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="hidden sm:inline">Limpiar Día</span>
+                </button>
+              )}
+              <button
+                onClick={() => openModalCrear(diaSeleccionado)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Actividad en {DIAS_SEMANA.find((d) => d.id === diaSeleccionado)?.corto}</span>
+              </button>
+            </div>
           </div>
 
           {bloquesDelDia.length === 0 ? (
-            <div className="p-12 text-center rounded-3xl bg-slate-900/40 border border-slate-800/80 space-y-3">
-              <Clock className="w-12 h-12 text-slate-600 mx-auto" />
-              <h3 className="text-base font-bold text-white">
-                No hay actividades para este día con los filtros actuales
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Puedes agregar una nueva actividad o copiar el horario de otro día para no empezar de cero.
-              </p>
-              <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="p-10 sm:p-14 text-center rounded-3xl bg-slate-900/40 border border-slate-800/80 space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto text-blue-400">
+                <Clock className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-bold text-white">
+                  {horarios.length === 0
+                    ? 'Horario en 0s (Listo para planear desde cero)'
+                    : `No hay actividades para el ${DIAS_SEMANA.find((d) => d.id === diaSeleccionado)?.nombre}`}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+                  {horarios.length === 0
+                    ? 'Tu base de datos está completamente limpia con 0 actividades. Comienza a planear tu semana añadiendo tus propios bloques con el botón inferior.'
+                    : 'Puedes agregar una actividad personalizada para este día o copiar la rutina desde otro día.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
                   onClick={() => openModalCrear(diaSeleccionado)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-[1.02]"
                 >
-                  + Agregar Actividad
+                  + Agregar Primera Actividad
                 </button>
-                <button
-                  onClick={() => {
-                    setCopyOrigenDia('lunes');
-                    setCopyDestinos([diaSeleccionado]);
-                    setIsCopyModalOpen(true);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700"
-                >
-                  Copiar de otro día
-                </button>
+                {horarios.length === 0 ? (
+                  <button
+                    onClick={handleRestaurarPlantillaSugerida}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-all"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Cargar Plantilla Sugerida</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setCopyOrigenDia('lunes');
+                      setCopyDestinos([diaSeleccionado]);
+                      setIsCopyModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition-all"
+                  >
+                    Copiar de otro día
+                  </button>
+                )}
               </div>
             </div>
           ) : (

@@ -96,10 +96,48 @@ export const CONFIG_CATEGORIAS: Record<
   },
 };
 
+// Helper para validar si un string es un UUID válido
+export const isUUID = (str: string): boolean => {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+};
+
+// Generador de UUID v4 seguro para frontend y Supabase
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // fallback
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const DIA_NUM: Record<DiaSemana, number> = {
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sabado: 6,
+  domingo: 7,
+};
+
+const makeDeterministicUUID = (dia: DiaSemana, index: number) => {
+  const diaPad = String(DIA_NUM[dia]).padStart(6, '0');
+  const idxPad = String(index).padStart(6, '0');
+  return `00000000-0000-4000-8000-${diaPad}${idxPad}`;
+};
+
 // Generador de bloques de lunes a viernes
 const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
   {
-    id: `bloque-${dia}-1`,
+    id: makeDeterministicUUID(dia, 1),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '08:00',
@@ -110,7 +148,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-2`,
+    id: makeDeterministicUUID(dia, 2),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '09:00',
@@ -121,7 +159,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-3`,
+    id: makeDeterministicUUID(dia, 3),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '13:00',
@@ -132,7 +170,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-4`,
+    id: makeDeterministicUUID(dia, 4),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '14:30',
@@ -143,7 +181,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-5`,
+    id: makeDeterministicUUID(dia, 5),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '18:30',
@@ -154,7 +192,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-6`,
+    id: makeDeterministicUUID(dia, 6),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '20:30',
@@ -165,7 +203,7 @@ const generarDiaLaboral = (dia: DiaSemana): BloqueHorario[] => [
     activo: true,
   },
   {
-    id: `bloque-${dia}-7`,
+    id: makeDeterministicUUID(dia, 7),
     user_id: 'demo-user',
     dia_semana: dia,
     hora_inicio: '22:00',
@@ -185,7 +223,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
   ...generarDiaLaboral('viernes'),
   // Sábado
   {
-    id: 'bloque-sabado-1',
+    id: makeDeterministicUUID('sabado', 1),
     user_id: 'demo-user',
     dia_semana: 'sabado',
     hora_inicio: '09:00',
@@ -196,7 +234,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
     activo: true,
   },
   {
-    id: 'bloque-sabado-2',
+    id: makeDeterministicUUID('sabado', 2),
     user_id: 'demo-user',
     dia_semana: 'sabado',
     hora_inicio: '11:00',
@@ -207,7 +245,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
     activo: true,
   },
   {
-    id: 'bloque-sabado-3',
+    id: makeDeterministicUUID('sabado', 3),
     user_id: 'demo-user',
     dia_semana: 'sabado',
     hora_inicio: '16:00',
@@ -219,7 +257,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
   },
   // Domingo
   {
-    id: 'bloque-domingo-1',
+    id: makeDeterministicUUID('domingo', 1),
     user_id: 'demo-user',
     dia_semana: 'domingo',
     hora_inicio: '10:00',
@@ -230,7 +268,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
     activo: true,
   },
   {
-    id: 'bloque-domingo-2',
+    id: makeDeterministicUUID('domingo', 2),
     user_id: 'demo-user',
     dia_semana: 'domingo',
     hora_inicio: '18:00',
@@ -241,7 +279,7 @@ export const INITIAL_HORARIOS: BloqueHorario[] = [
     activo: true,
   },
   {
-    id: 'bloque-domingo-3',
+    id: makeDeterministicUUID('domingo', 3),
     user_id: 'demo-user',
     dia_semana: 'domingo',
     hora_inicio: '22:00',
