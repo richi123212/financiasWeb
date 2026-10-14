@@ -131,6 +131,28 @@ CREATE INDEX IF NOT EXISTS idx_recetas_user_id ON public.recetas_cocina(user_id)
 CREATE INDEX IF NOT EXISTS idx_recetas_categoria ON public.recetas_cocina(categoria);
 CREATE INDEX IF NOT EXISTS idx_recetas_es_favorita ON public.recetas_cocina(es_favorita);
 
+-- 10. TABLA: horarios_semanales (Rutinas diarias, bloques de tiempo y time-blocking)
+CREATE TABLE IF NOT EXISTS public.horarios_semanales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    dia_semana TEXT NOT NULL CHECK (dia_semana IN ('lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo')),
+    hora_inicio TEXT NOT NULL,
+    hora_fin TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT NOT NULL DEFAULT 'rutina' CHECK (categoria IN ('alimentacion', 'trabajo', 'gym', 'estudio', 'rutina', 'descanso', 'personal')),
+    color_hex TEXT DEFAULT '#3B82F6',
+    icono TEXT DEFAULT 'Clock',
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices para búsqueda rápida en horarios
+CREATE INDEX IF NOT EXISTS idx_horarios_user_id ON public.horarios_semanales(user_id);
+CREATE INDEX IF NOT EXISTS idx_horarios_dia_semana ON public.horarios_semanales(dia_semana);
+CREATE INDEX IF NOT EXISTS idx_horarios_hora_inicio ON public.horarios_semanales(hora_inicio);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -143,6 +165,7 @@ ALTER TABLE public.gym_entrenamientos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tareas_pendientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recetas_cocina ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.horarios_semanales ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -182,5 +205,10 @@ CREATE POLICY "Usuarios acceden solo a sus tareas" ON public.tareas_pendientes
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus recetas" ON public.recetas_cocina;
 CREATE POLICY "Usuarios acceden solo a sus recetas" ON public.recetas_cocina
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus horarios" ON public.horarios_semanales;
+CREATE POLICY "Usuarios acceden solo a sus horarios" ON public.horarios_semanales
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 
 

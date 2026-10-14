@@ -227,4 +227,43 @@ export interface RecetaCocina {
   updated_at?: string;
 }
 
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE HORARIO SEMANAL & RUTINAS
+// ----------------------------------------------------
+export type DiaSemana =
+  | 'lunes'
+  | 'martes'
+  | 'miercoles'
+  | 'jueves'
+  | 'viernes'
+  | 'sabado'
+  | 'domingo';
+
+export type CategoriaHorario =
+  | 'alimentacion'
+  | 'trabajo'
+  | 'gym'
+  | 'estudio'
+  | 'rutina'
+  | 'descanso'
+  | 'personal';
+
+export interface BloqueHorario {
+  id: string;
+  user_id: string;
+  dia_semana: DiaSemana;
+  hora_inicio: string; // formato "09:00"
+  hora_fin: string; // formato "10:00"
+  titulo: string;
+  descripcion?: string;
+  categoria: CategoriaHorario;
+  color_hex?: string;
+  icono?: string;
+  activo: boolean;
+  completado_hoy?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 

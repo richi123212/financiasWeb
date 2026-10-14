@@ -7,12 +7,13 @@ import {
   LogOut,
   Sparkles,
   ChefHat,
+  CalendarRange,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 
 interface ModuleHubProps {
   user: UserProfile;
-  onSelectModule: (module: 'finanzas' | 'gym' | 'tareas' | 'recetas') => void;
+  onSelectModule: (module: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario') => void;
   onLogout: () => void;
 }
 
@@ -24,7 +25,7 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-indigo-500/30">
       {/* Barra superior del Hub */}
-      <header className="max-w-6xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800/80">
+      <header className="max-w-7xl w-full mx-auto flex items-center justify-between pb-6 border-b border-slate-800/80">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-amber-500 to-emerald-400 p-0.5 shadow-lg shadow-indigo-500/20">
             <div className="w-full h-full bg-[#0B0F19] rounded-[14px] flex items-center justify-center">
@@ -46,36 +47,36 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
         </button>
       </header>
 
-      {/* Contenido Central: Saludo y Tarjetas de Finanzas, GYM, Tareas y Recetas */}
-      <main className="max-w-6xl w-full mx-auto my-auto py-12 space-y-8 animate-in fade-in duration-300">
+      {/* Contenido Central: Saludo y Tarjetas de los 5 Módulos */}
+      <main className="max-w-7xl w-full mx-auto my-auto py-10 space-y-8 animate-in fade-in duration-300">
         <div className="text-center space-y-2">
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
             ¿A dónde deseas entrar?
           </h2>
           <p className="text-xs text-slate-400">
-            Selecciona el apartado para continuar
+            Selecciona el apartado para organizar tu día y finanzas
           </p>
         </div>
 
-        {/* Tarjetas de Selección: Finanzas, GYM, Tareas o Recetas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pt-2">
+        {/* Tarjetas de Selección: 5 módulos ordenados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-2">
           {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#151D2E] to-[#101726] border border-slate-800 hover:border-emerald-500/60 p-6 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#151D2E] to-[#101726] border border-slate-800 hover:border-emerald-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-500" />
 
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
               <Wallet className="w-8 h-8 text-emerald-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white group-hover:text-emerald-300 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-emerald-300 transition-colors">
                 Finanzas
               </h3>
               <p className="text-xs text-slate-400 font-medium">
-                Tarjetas, quincena y gastos
+                Tarjetas, sueldo y gastos
               </p>
             </div>
 
@@ -88,16 +89,16 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
           {/* Tarjeta 2: GYM */}
           <div
             onClick={() => onSelectModule('gym')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#171A2B] to-[#111322] border border-slate-800 hover:border-indigo-500/60 p-6 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#171A2B] to-[#111322] border border-slate-800 hover:border-indigo-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-500" />
 
             <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/10">
               <Dumbbell className="w-8 h-8 text-indigo-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white group-hover:text-indigo-300 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-indigo-300 transition-colors">
                 GYM
               </h3>
               <p className="text-xs text-slate-400 font-medium">
@@ -111,19 +112,19 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 3: COSAS POR HACER / PENDIENTES */}
+          {/* Tarjeta 3: PENDIENTES */}
           <div
             onClick={() => onSelectModule('tareas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#1E1926] to-[#14121F] border border-slate-800 hover:border-amber-500/60 p-6 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#1E1926] to-[#14121F] border border-slate-800 hover:border-amber-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all duration-500" />
 
             <div className="w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/10">
               <CheckSquare className="w-8 h-8 text-amber-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white group-hover:text-amber-300 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-amber-300 transition-colors">
                 Pendientes
               </h3>
               <p className="text-xs text-slate-400 font-medium">
@@ -137,19 +138,19 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 4: RECETAS & COCINA */}
+          {/* Tarjeta 4: RECETAS */}
           <div
             onClick={() => onSelectModule('recetas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#241A1C] to-[#171113] border border-slate-800 hover:border-orange-500/60 p-6 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#241A1C] to-[#171113] border border-slate-800 hover:border-orange-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-orange-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-orange-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-orange-500/20 transition-all duration-500" />
 
             <div className="w-16 h-16 rounded-2xl bg-orange-500/15 text-orange-400 flex items-center justify-center border border-orange-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-orange-500/10">
               <ChefHat className="w-8 h-8 text-orange-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white group-hover:text-orange-300 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-orange-300 transition-colors">
                 Recetas
               </h3>
               <p className="text-xs text-slate-400 font-medium">
@@ -158,6 +159,32 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </div>
 
             <button className="w-full py-2.5 rounded-2xl bg-orange-600/20 group-hover:bg-orange-600 text-orange-300 group-hover:text-white border border-orange-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta 5: HORARIO SEMANAL */}
+          <div
+            onClick={() => onSelectModule('horario')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#131E35] to-[#0D1525] border border-slate-800 hover:border-blue-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/15 text-blue-400 flex items-center justify-center border border-blue-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/10">
+              <CalendarRange className="w-8 h-8 text-blue-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-blue-300 transition-colors">
+                Horario
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Rutina diaria y time-blocking
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-blue-600/20 group-hover:bg-blue-600 text-blue-300 group-hover:text-white border border-blue-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
               <span>Entrar</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </button>

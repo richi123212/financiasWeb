@@ -10,6 +10,7 @@ import {
   CheckSquare,
   LayoutGrid,
   ChefHat,
+  CalendarRange,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -20,8 +21,8 @@ interface NavbarProps {
   activeTab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones';
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
-  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas';
-  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'hub') => void;
+  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario';
+  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'hub') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -89,9 +90,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       Pen<span className="text-amber-400">dientes</span>
                     </>
-                  ) : (
+                  ) : moduloActivo === 'recetas' ? (
                     <>
                       Re<span className="text-orange-400">cetas</span>
+                    </>
+                  ) : (
+                    <>
+                      Ho<span className="text-blue-400">rario</span>
                     </>
                   )}
                 </span>
@@ -102,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas) */}
+          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas, Horario) */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar">
             <button
               onClick={() => onCambiarModulo('finanzas')}
@@ -151,6 +156,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ChefHat className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Recetas</span>
             </button>
+
+            <button
+              onClick={() => onCambiarModulo('horario')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'horario'
+                  ? 'bg-gradient-to-r from-blue-500/25 to-indigo-500/25 text-blue-300 border border-blue-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Horario</span>
+            </button>
           </div>
 
           {/* Acciones y Logout */}
@@ -181,7 +198,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'Fuerza & Pesos'
                     : moduloActivo === 'tareas'
                     ? 'Tareas & Agenda'
-                    : 'Recetas & Cocina'}
+                    : moduloActivo === 'recetas'
+                    ? 'Recetas & Cocina'
+                    : 'Horario Semanal'}
                 </span>
               </div>
 
