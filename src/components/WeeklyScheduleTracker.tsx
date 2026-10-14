@@ -29,6 +29,7 @@ import {
   STORAGE_KEY_HORARIOS,
   timeToMinutes,
   getDiaSemanaActual,
+  formatTime12h,
 } from '../lib/scheduleData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -496,12 +497,14 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                 </span>
-                <span>En este momento ({currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
+                <span>
+                  En este momento ({currentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })})
+                </span>
               </span>
 
               {actividadActual && (
                 <span className="text-xs font-bold text-slate-300">
-                  {actividadActual.hora_inicio} - {actividadActual.hora_fin}
+                  {formatTime12h(actividadActual.hora_inicio)} - {formatTime12h(actividadActual.hora_fin)}
                 </span>
               )}
             </div>
@@ -547,7 +550,7 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
                   <span>{proximaActividad.titulo}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-blue-400">
-                  Inicia a las {proximaActividad.hora_inicio}
+                  Inicia a las {formatTime12h(proximaActividad.hora_inicio)}
                 </span>
               </div>
             ) : (
@@ -757,7 +760,7 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
                           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-extrabold text-white">
                             <Clock className="w-3.5 h-3.5 text-blue-400" />
                             <span>
-                              {bloque.hora_inicio} - {bloque.hora_fin}
+                              {formatTime12h(bloque.hora_inicio)} - {formatTime12h(bloque.hora_fin)}
                             </span>
                             <span className="text-[10px] text-slate-400 font-semibold pl-1 border-l border-slate-800">
                               {getDuracionTexto(bloque.hora_inicio, bloque.hora_fin)}
@@ -904,7 +907,7 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
                           >
                             <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
                               <span>
-                                {b.hora_inicio} - {b.hora_fin}
+                                {formatTime12h(b.hora_inicio)} - {formatTime12h(b.hora_fin)}
                               </span>
                             </div>
                             <p className="text-xs font-black text-white mt-0.5 line-clamp-1">
@@ -971,28 +974,33 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
               </div>
 
               {/* Horas de inicio y fin */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Hora de Inicio</label>
-                  <input
-                    type="time"
-                    required
-                    value={formHoraInicio}
-                    onChange={(e) => setFormHoraInicio(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300">Hora de Inicio</label>
+                    <input
+                      type="time"
+                      required
+                      value={formHoraInicio}
+                      onChange={(e) => setFormHoraInicio(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Hora de Fin</label>
-                  <input
-                    type="time"
-                    required
-                    value={formHoraFin}
-                    onChange={(e) => setFormHoraFin(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300">Hora de Fin</label>
+                    <input
+                      type="time"
+                      required
+                      value={formHoraFin}
+                      onChange={(e) => setFormHoraFin(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
+                <p className="text-[11px] text-blue-400 font-bold text-center">
+                  Horario: {formatTime12h(formHoraInicio)} a {formatTime12h(formHoraFin)}
+                </p>
               </div>
 
               {/* Título de la actividad */}

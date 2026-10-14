@@ -274,3 +274,17 @@ export const getDiaSemanaActual = (): DiaSemana => {
   const d = new Date().getDay();
   return map[d] || 'lunes';
 };
+
+// Helper para convertir hora "HH:MM" (formato 24h) a formato amigable de 12 horas (ej. "13:00" -> "1:00 pm", "09:00" -> "9:00 am")
+export const formatTime12h = (timeStr: string): string => {
+  if (!timeStr) return '';
+  const [hStr, mStr] = timeStr.split(':');
+  let hours = parseInt(hStr, 10);
+  const minutes = mStr !== undefined ? mStr : '00';
+  if (isNaN(hours)) return timeStr;
+  const period = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minutes} ${period}`;
+};
+
