@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   ChefHat,
   CalendarRange,
+  Clapperboard,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -21,8 +22,8 @@ interface NavbarProps {
   activeTab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones';
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
-  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario';
-  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'hub') => void;
+  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine';
+  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine' | 'hub') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -94,9 +95,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       Re<span className="text-orange-400">cetas</span>
                     </>
-                  ) : (
+                  ) : moduloActivo === 'horario' ? (
                     <>
                       Ho<span className="text-blue-400">rario</span>
+                    </>
+                  ) : (
+                    <>
+                      ¿Qué<span className="text-rose-400">Veo?</span>
                     </>
                   )}
                 </span>
@@ -107,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas, Horario) */}
+          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas, Horario, ¿Qué veo hoy?) */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar">
             <button
               onClick={() => onCambiarModulo('finanzas')}
@@ -167,6 +172,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <CalendarRange className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Horario</span>
+            </button>
+
+            <button
+              onClick={() => onCambiarModulo('cine')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'cine'
+                  ? 'bg-gradient-to-r from-rose-500/25 to-pink-500/25 text-rose-300 border border-rose-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Clapperboard className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">¿Qué veo hoy?</span>
             </button>
           </div>
 

@@ -57,6 +57,7 @@ import { GymTracker } from './components/GymTracker';
 import { TaskTracker } from './components/TaskTracker';
 import { RecipeTracker } from './components/RecipeTracker';
 import { WeeklyScheduleTracker } from './components/WeeklyScheduleTracker';
+import { WatchlistTracker } from './components/WatchlistTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
@@ -65,7 +66,7 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
-  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario'>('hub');
+  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine'>('hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -763,6 +764,8 @@ export default function App() {
             ? 'recetas'
             : currentModule === 'horario'
             ? 'horario'
+            : currentModule === 'cine'
+            ? 'cine'
             : 'finanzas'
         }
         onCambiarModulo={(mod) => setCurrentModule(mod)}
@@ -778,6 +781,8 @@ export default function App() {
           <RecipeTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'horario' ? (
           <WeeklyScheduleTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'cine' ? (
+          <WatchlistTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : (
           <>
             {/* BANNER DE ALERTA O RIESGO DE DEUDA (Si aplica) */}

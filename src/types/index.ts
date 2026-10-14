@@ -265,5 +265,47 @@ export interface BloqueHorario {
   updated_at?: string;
 }
 
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE CINE & SERIES ("¿Qué veo hoy?")
+// ----------------------------------------------------
+export type TipoContenido = 'pelicula' | 'serie' | 'anime' | 'documental';
+
+export type EstadoContenido = 'por_ver' | 'viendo' | 'terminada' | 'abandonada';
+
+export type PlataformaStreaming =
+  | 'Netflix'
+  | 'Disney+'
+  | 'Max'
+  | 'Prime Video'
+  | 'Apple TV+'
+  | 'Crunchyroll'
+  | 'Star+'
+  | 'Paramount+'
+  | 'Cine'
+  | 'YouTube'
+  | 'Otro';
+
+export interface ItemWatchlist {
+  id: string;
+  user_id: string;
+  titulo: string;
+  tipo: TipoContenido;
+  plataforma: PlataformaStreaming;
+  estado: EstadoContenido;
+  temporada_actual?: number;
+  capitulo_actual?: number;
+  total_temporadas?: number;
+  total_capitulos?: number;
+  calificacion?: number; // 1-5 estrellas
+  genero?: string;
+  notas?: string;
+  portada_url?: string;
+  favorito?: boolean;
+  duracion_min?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 
 

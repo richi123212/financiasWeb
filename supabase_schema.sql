@@ -153,6 +153,33 @@ CREATE INDEX IF NOT EXISTS idx_horarios_user_id ON public.horarios_semanales(use
 CREATE INDEX IF NOT EXISTS idx_horarios_dia_semana ON public.horarios_semanales(dia_semana);
 CREATE INDEX IF NOT EXISTS idx_horarios_hora_inicio ON public.horarios_semanales(hora_inicio);
 
+-- 11. TABLA: watchlist_contenido ("¿Qué veo hoy?" - Películas, series, animes, ruleta y seguimiento de capítulos)
+CREATE TABLE IF NOT EXISTS public.watchlist_contenido (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    titulo TEXT NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'pelicula' CHECK (tipo IN ('pelicula', 'serie', 'anime', 'documental')),
+    plataforma TEXT NOT NULL DEFAULT 'Netflix',
+    estado TEXT NOT NULL DEFAULT 'por_ver' CHECK (estado IN ('por_ver', 'viendo', 'terminada', 'abandonada')),
+    temporada_actual INTEGER DEFAULT 1,
+    capitulo_actual INTEGER DEFAULT 1,
+    total_temporadas INTEGER,
+    total_capitulos INTEGER,
+    calificacion INTEGER CHECK (calificacion >= 1 AND calificacion <= 5),
+    genero TEXT,
+    notas TEXT,
+    portada_url TEXT,
+    favorito BOOLEAN NOT NULL DEFAULT false,
+    duracion_min INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices para búsqueda rápida en watchlist
+CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON public.watchlist_contenido(user_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_estado ON public.watchlist_contenido(estado);
+CREATE INDEX IF NOT EXISTS idx_watchlist_plataforma ON public.watchlist_contenido(plataforma);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -166,6 +193,7 @@ ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tareas_pendientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recetas_cocina ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.horarios_semanales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.watchlist_contenido ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- POLÍTICAS DE ACCESO SEGURO (Sólo el propietario puede ver, insertar o modificar)
@@ -209,6 +237,11 @@ CREATE POLICY "Usuarios acceden solo a sus recetas" ON public.recetas_cocina
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus horarios" ON public.horarios_semanales;
 CREATE POLICY "Usuarios acceden solo a sus horarios" ON public.horarios_semanales
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a su watchlist" ON public.watchlist_contenido;
+CREATE POLICY "Usuarios acceden solo a su watchlist" ON public.watchlist_contenido
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 
 
 

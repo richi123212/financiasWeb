@@ -8,12 +8,13 @@ import {
   Sparkles,
   ChefHat,
   CalendarRange,
+  Clapperboard,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 
 interface ModuleHubProps {
   user: UserProfile;
-  onSelectModule: (module: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario') => void;
+  onSelectModule: (module: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine') => void;
   onLogout: () => void;
 }
 
@@ -58,8 +59,8 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
           </p>
         </div>
 
-        {/* Tarjetas de Selección: 5 módulos ordenados */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-2">
+        {/* Tarjetas de Selección: 6 módulos ordenados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 pt-2">
           {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}
@@ -185,6 +186,32 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </div>
 
             <button className="w-full py-2.5 rounded-2xl bg-blue-600/20 group-hover:bg-blue-600 text-blue-300 group-hover:text-white border border-blue-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta 6: CINE, SERIES & RULETA ("¿Qué veo hoy?") */}
+          <div
+            onClick={() => onSelectModule('cine')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#211226] to-[#140A18] border border-slate-800 hover:border-rose-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-rose-500/20 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-rose-500/10">
+              <Clapperboard className="w-8 h-8 text-rose-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-rose-300 transition-colors">
+                ¿Qué veo hoy?
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Watchlist, ruleta 🎲 y capítulos
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-rose-600/20 group-hover:bg-rose-600 text-rose-300 group-hover:text-white border border-rose-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
               <span>Entrar</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </button>
