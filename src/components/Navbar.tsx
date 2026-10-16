@@ -12,6 +12,8 @@ import {
   ChefHat,
   CalendarRange,
   Clapperboard,
+  ShoppingBag,
+  Target,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -22,8 +24,27 @@ interface NavbarProps {
   activeTab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones';
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
-  moduloActivo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine';
-  onCambiarModulo: (modulo: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine' | 'hub') => void;
+  moduloActivo:
+    | 'finanzas'
+    | 'gym'
+    | 'tareas'
+    | 'recetas'
+    | 'horario'
+    | 'cine'
+    | 'compras'
+    | 'objetivos';
+  onCambiarModulo: (
+    modulo:
+      | 'finanzas'
+      | 'gym'
+      | 'tareas'
+      | 'recetas'
+      | 'horario'
+      | 'cine'
+      | 'compras'
+      | 'objetivos'
+      | 'hub'
+  ) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -83,17 +104,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       Finan<span className="text-emerald-400">zas</span>
                     </>
+                  ) : moduloActivo === 'compras' ? (
+                    <>
+                      Com<span className="text-teal-400">pras</span>
+                    </>
+                  ) : moduloActivo === 'objetivos' ? (
+                    <>
+                      Obje<span className="text-amber-400">tivos</span>
+                    </>
                   ) : moduloActivo === 'gym' ? (
                     <>
                       G<span className="text-indigo-400">YM</span>
                     </>
                   ) : moduloActivo === 'tareas' ? (
                     <>
-                      Pen<span className="text-amber-400">dientes</span>
+                      Pen<span className="text-orange-400">dientes</span>
                     </>
                   ) : moduloActivo === 'recetas' ? (
                     <>
-                      Re<span className="text-orange-400">cetas</span>
+                      Re<span className="text-rose-400">cetas</span>
                     </>
                   ) : moduloActivo === 'horario' ? (
                     <>
@@ -101,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </>
                   ) : (
                     <>
-                      ¿Qué<span className="text-rose-400">Veo?</span>
+                      ¿Qué<span className="text-pink-400">Veo?</span>
                     </>
                   )}
                 </span>
@@ -112,8 +141,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Selector Central de Módulos (Finanzas, GYM, Pendientes, Recetas, Horario, ¿Qué veo hoy?) */}
-          <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar">
+          {/* Selector Central de Módulos con scroll suave */}
+          <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={() => onCambiarModulo('finanzas')}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
@@ -124,6 +153,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Wallet className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Finanzas</span>
+            </button>
+
+            <button
+              onClick={() => onCambiarModulo('compras')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'compras'
+                  ? 'bg-gradient-to-r from-teal-500/25 to-emerald-500/25 text-teal-300 border border-teal-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Compras</span>
+            </button>
+
+            <button
+              onClick={() => onCambiarModulo('objetivos')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'objetivos'
+                  ? 'bg-gradient-to-r from-amber-500/25 to-yellow-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Objetivos</span>
             </button>
 
             <button
@@ -142,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onCambiarModulo('tareas')}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'tareas'
-                  ? 'bg-gradient-to-r from-amber-500/25 to-orange-500/25 text-amber-300 border border-amber-500/30 shadow-sm'
+                  ? 'bg-gradient-to-r from-orange-500/25 to-amber-500/25 text-orange-300 border border-orange-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -154,7 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onCambiarModulo('recetas')}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'recetas'
-                  ? 'bg-gradient-to-r from-orange-500/25 to-amber-500/25 text-orange-300 border border-orange-500/30 shadow-sm'
+                  ? 'bg-gradient-to-r from-rose-500/25 to-pink-500/25 text-rose-300 border border-rose-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -178,12 +231,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onCambiarModulo('cine')}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 moduloActivo === 'cine'
-                  ? 'bg-gradient-to-r from-rose-500/25 to-pink-500/25 text-rose-300 border border-rose-500/30 shadow-sm'
+                  ? 'bg-gradient-to-r from-pink-500/25 to-rose-500/25 text-pink-300 border border-pink-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Clapperboard className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">¿Qué veo hoy?</span>
+              <span className="hidden sm:inline">¿Qué veo?</span>
             </button>
           </div>
 
@@ -211,6 +264,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[10px] text-slate-400">
                   {moduloActivo === 'finanzas'
                     ? 'Finanzas'
+                    : moduloActivo === 'compras'
+                    ? 'Compras & Wishlist'
+                    : moduloActivo === 'objetivos'
+                    ? 'Metas & Hábitos'
                     : moduloActivo === 'gym'
                     ? 'Fuerza & Pesos'
                     : moduloActivo === 'tareas'
@@ -231,6 +288,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
         </div>
+
 
 
         {/* Pestañas secundarias de Finanzas (solo cuando Finanzas está activo) */}

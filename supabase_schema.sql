@@ -241,7 +241,70 @@ CREATE POLICY "Usuarios acceden solo a sus horarios" ON public.horarios_semanale
 DROP POLICY IF EXISTS "Usuarios acceden solo a su watchlist" ON public.watchlist_contenido;
 CREATE POLICY "Usuarios acceden solo a su watchlist" ON public.watchlist_contenido
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- 12. TABLA: compras_wishlist (Wishlist Inteligente, período de enfriamiento de 30 días y costo por uso)
+CREATE TABLE IF NOT EXISTS public.compras_wishlist (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    nombre TEXT NOT NULL,
+    enlace_url TEXT,
+    precio_estimado NUMERIC(12, 2) NOT NULL CHECK (precio_estimado >= 0),
+    categoria TEXT NOT NULL DEFAULT 'Trabajo / Tecnología',
+    usos_estimados_ano INTEGER NOT NULL DEFAULT 100 CHECK (usos_estimados_ano >= 1),
+    nivel_necesidad TEXT NOT NULL DEFAULT 'util' CHECK (nivel_necesidad IN ('capricho', 'util', 'esencial')),
+    escala_necesidad INTEGER DEFAULT 3 CHECK (escala_necesidad >= 1 AND escala_necesidad <= 5),
+    estado TEXT NOT NULL DEFAULT 'espera' CHECK (estado IN ('espera', 'aprobado', 'comprado', 'descartado')),
+    dias_espera_total INTEGER NOT NULL DEFAULT 30,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    comprado_en TIMESTAMP WITH TIME ZONE,
+    descartado_en TIMESTAMP WITH TIME ZONE,
+    fecha_evaluacion_90dias TIMESTAMP WITH TIME ZONE,
+    evaluacion_90dias_completada BOOLEAN DEFAULT false,
+    satisfaccion_post_compra INTEGER CHECK (satisfaccion_post_compra >= 1 AND satisfaccion_post_compra <= 5),
+    notas TEXT,
+    imagen_url TEXT
+);
 
+CREATE INDEX IF NOT EXISTS idx_compras_user_id ON public.compras_wishlist(user_id);
+CREATE INDEX IF NOT EXISTS idx_compras_estado ON public.compras_wishlist(estado);
+CREATE INDEX IF NOT EXISTS idx_compras_created_at ON public.compras_wishlist(created_at);
 
+-- 13. TABLA: objetivos_metas (Metas cuantificables, lead measures, hábitos diarios e hitos)
+CREATE TABLE IF NOT EXISTS public.objetivos_metas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    titulo TEXT NOT NULL,
+    area TEXT NOT NULL DEFAULT 'Finanzas' CHECK (area IN ('Finanzas', 'Gym & Salud', 'Aprendizaje / Proyectos', 'Personal')),
+    fecha_limite DATE NOT NULL,
+    valor_inicial NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    valor_meta NUMERIC(14, 2) NOT NULL DEFAULT 100,
+    valor_actual NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    unidad_medida TEXT NOT NULL DEFAULT '$ MXN',
+    por_que_motivacional TEXT,
+    habito_conductor TEXT,
+    racha_habito INTEGER NOT NULL DEFAULT 0 CHECK (racha_habito >= 0),
+    ultimo_check_habito TEXT,
+    historial_checks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    hitos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    estado TEXT NOT NULL DEFAULT 'en_progreso' CHECK (estado IN ('en_progreso', 'pausado', 'cumplido')),
+    cumplido_en TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
+CREATE INDEX IF NOT EXISTS idx_objetivos_user_id ON public.objetivos_metas(user_id);
+CREATE INDEX IF NOT EXISTS idx_objetivos_area ON public.objetivos_metas(area);
+CREATE INDEX IF NOT EXISTS idx_objetivos_estado ON public.objetivos_metas(estado);
 
+-- ==============================================================================
+-- HABILITACIÓN DE RLS PARA NUEVAS TABLAS
+-- ==============================================================================
+ALTER TABLE public.compras_wishlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.objetivos_metas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus compras" ON public.compras_wishlist;
+CREATE POLICY "Usuarios acceden solo a sus compras" ON public.compras_wishlist
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a sus objetivos" ON public.objetivos_metas;
+CREATE POLICY "Usuarios acceden solo a sus objetivos" ON public.objetivos_metas
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

@@ -305,7 +305,79 @@ export interface ItemWatchlist {
   created_at?: string;
   updated_at?: string;
 }
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE COMPRAS (WISHLIST INTELIGENTE)
+// ----------------------------------------------------
+export type CategoriaCompra =
+  | 'Gym / Salud'
+  | 'Trabajo / Tecnología'
+  | 'Ropa & Estilo'
+  | 'Ocio / Capricho'
+  | 'Hogar'
+  | 'Otro';
 
+export type NivelNecesidad = 'capricho' | 'util' | 'esencial';
+export type EstadoCompra = 'espera' | 'aprobado' | 'comprado' | 'descartado';
 
+export interface ItemCompraWishlist {
+  id: string;
+  user_id: string;
+  nombre: string;
+  enlace_url?: string;
+  precio_estimado: number;
+  categoria: CategoriaCompra;
+  usos_estimados_ano: number;
+  nivel_necesidad: NivelNecesidad;
+  escala_necesidad?: number; // 1 a 5
+  estado: EstadoCompra; // 'espera' | 'aprobado' | 'comprado' | 'descartado'
+  dias_espera_total: number; // Por defecto 30
+  created_at: string; // ISO date
+  comprado_en?: string | null;
+  descartado_en?: string | null;
+  fecha_evaluacion_90dias?: string | null;
+  evaluacion_90dias_completada?: boolean;
+  satisfaccion_post_compra?: number; // 1 a 5
+  notas?: string;
+  imagen_url?: string;
+}
 
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE OBJETIVOS (METAS & HÁBITOS)
+// ----------------------------------------------------
+export type AreaObjetivo =
+  | 'Finanzas'
+  | 'Gym & Salud'
+  | 'Aprendizaje / Proyectos'
+  | 'Personal';
 
+export type EstadoObjetivo = 'en_progreso' | 'pausado' | 'cumplido';
+
+export interface HitoObjetivo {
+  id: string;
+  titulo: string;
+  porcentaje_sugerido?: number;
+  completado: boolean;
+  completado_en?: string | null;
+}
+
+export interface ObjetivoMeta {
+  id: string;
+  user_id: string;
+  titulo: string;
+  area: AreaObjetivo;
+  fecha_limite: string; // YYYY-MM-DD
+  valor_inicial: number;
+  valor_meta: number;
+  valor_actual: number;
+  unidad_medida: string; // '$ MXN', 'kg', 'capítulos', '%', 'libros', etc.
+  por_que_motivacional: string;
+  habito_conductor: string; // Lead Measure
+  racha_habito: number; // Días consecutivos
+  ultimo_check_habito?: string | null; // YYYY-MM-DD
+  historial_checks?: string[]; // Array de 'YYYY-MM-DD'
+  hitos: HitoObjetivo[];
+  estado: EstadoObjetivo;
+  cumplido_en?: string | null;
+  created_at: string;
+  updated_at?: string;
+}

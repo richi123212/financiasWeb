@@ -9,12 +9,24 @@ import {
   ChefHat,
   CalendarRange,
   Clapperboard,
+  ShoppingBag,
+  Target,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 
 interface ModuleHubProps {
   user: UserProfile;
-  onSelectModule: (module: 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine') => void;
+  onSelectModule: (
+    module:
+      | 'finanzas'
+      | 'gym'
+      | 'tareas'
+      | 'recetas'
+      | 'horario'
+      | 'cine'
+      | 'compras'
+      | 'objetivos'
+  ) => void;
   onLogout: () => void;
 }
 
@@ -48,19 +60,19 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
         </button>
       </header>
 
-      {/* Contenido Central: Saludo y Tarjetas de los 5 Módulos */}
-      <main className="max-w-7xl w-full mx-auto my-auto py-10 space-y-8 animate-in fade-in duration-300">
-        <div className="text-center space-y-2">
+      {/* Contenido Central: Saludo y Tarjetas de los 8 Módulos */}
+      <main className="max-w-7xl w-full mx-auto my-auto py-8 space-y-6 animate-in fade-in duration-300">
+        <div className="text-center space-y-1.5">
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
             ¿A dónde deseas entrar?
           </h2>
           <p className="text-xs text-slate-400">
-            Selecciona el apartado para organizar tu día y finanzas
+            Selecciona el apartado para organizar tu día, hábitos, finanzas y metas
           </p>
         </div>
 
-        {/* Tarjetas de Selección: 6 módulos ordenados */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 pt-2">
+        {/* Tarjetas de Selección: 8 módulos organizados en grid 4x2 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
           {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}
@@ -87,7 +99,59 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 2: GYM */}
+          {/* Tarjeta 2: COMPRAS (Wishlist Inteligente) */}
+          <div
+            onClick={() => onSelectModule('compras')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#122224] to-[#0A1719] border border-slate-800 hover:border-teal-400/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-teal-500/25 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-teal-500/15 text-teal-400 flex items-center justify-center border border-teal-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-teal-500/10">
+              <ShoppingBag className="w-8 h-8 text-teal-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-teal-300 transition-colors">
+                Compras
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Deseos, links y valor real
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-teal-600/20 group-hover:bg-teal-500 text-teal-300 group-hover:text-slate-950 border border-teal-500/30 font-black text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta 3: OBJETIVOS (Metas & Hábitos) */}
+          <div
+            onClick={() => onSelectModule('objetivos')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#221A11] to-[#141009] border border-slate-800 hover:border-amber-400/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/25 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/10">
+              <Target className="w-8 h-8 text-amber-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-amber-300 transition-colors">
+                Objetivos
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Metas, progreso e hitos
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-amber-600/20 group-hover:bg-amber-500 text-amber-300 group-hover:text-slate-950 border border-amber-500/30 font-black text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta 4: GYM */}
           <div
             onClick={() => onSelectModule('gym')}
             className="group relative rounded-3xl bg-gradient-to-b from-[#171A2B] to-[#111322] border border-slate-800 hover:border-indigo-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
@@ -113,49 +177,23 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 3: PENDIENTES */}
+          {/* Tarjeta 5: PENDIENTES */}
           <div
             onClick={() => onSelectModule('tareas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#1E1926] to-[#14121F] border border-slate-800 hover:border-amber-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all duration-500" />
-
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/10">
-              <CheckSquare className="w-8 h-8 text-amber-400" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-lg font-black text-white group-hover:text-amber-300 transition-colors">
-                Pendientes
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">
-                Cosas por hacer y agenda
-              </p>
-            </div>
-
-            <button className="w-full py-2.5 rounded-2xl bg-amber-600/20 group-hover:bg-amber-600 text-amber-300 group-hover:text-white border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
-              <span>Entrar</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-
-          {/* Tarjeta 4: RECETAS */}
-          <div
-            onClick={() => onSelectModule('recetas')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#241A1C] to-[#171113] border border-slate-800 hover:border-orange-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#1E1926] to-[#14121F] border border-slate-800 hover:border-orange-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-orange-500/20 transition-all duration-500" />
 
             <div className="w-16 h-16 rounded-2xl bg-orange-500/15 text-orange-400 flex items-center justify-center border border-orange-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-orange-500/10">
-              <ChefHat className="w-8 h-8 text-orange-400" />
+              <CheckSquare className="w-8 h-8 text-orange-400" />
             </div>
 
             <div className="space-y-1">
               <h3 className="text-lg font-black text-white group-hover:text-orange-300 transition-colors">
-                Recetas
+                Pendientes
               </h3>
               <p className="text-xs text-slate-400 font-medium">
-                Platillos, bistec y modo chef
+                Cosas por hacer y agenda
               </p>
             </div>
 
@@ -165,7 +203,33 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 5: HORARIO SEMANAL */}
+          {/* Tarjeta 6: RECETAS */}
+          <div
+            onClick={() => onSelectModule('recetas')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#241A1C] to-[#171113] border border-slate-800 hover:border-rose-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-rose-500/20 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-rose-500/10">
+              <ChefHat className="w-8 h-8 text-rose-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-rose-300 transition-colors">
+                Recetas
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Platillos, bistec y modo chef
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-rose-600/20 group-hover:bg-rose-600 text-rose-300 group-hover:text-white border border-rose-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta 7: HORARIO SEMANAL */}
           <div
             onClick={() => onSelectModule('horario')}
             className="group relative rounded-3xl bg-gradient-to-b from-[#131E35] to-[#0D1525] border border-slate-800 hover:border-blue-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
@@ -191,19 +255,19 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
             </button>
           </div>
 
-          {/* Tarjeta 6: CINE, SERIES & RULETA ("¿Qué veo hoy?") */}
+          {/* Tarjeta 8: CINE, SERIES & RULETA ("¿Qué veo hoy?") */}
           <div
             onClick={() => onSelectModule('cine')}
-            className="group relative rounded-3xl bg-gradient-to-b from-[#211226] to-[#140A18] border border-slate-800 hover:border-rose-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+            className="group relative rounded-3xl bg-gradient-to-b from-[#211226] to-[#140A18] border border-slate-800 hover:border-pink-500/60 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-rose-500/20 transition-all duration-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-pink-500/20 transition-all duration-500" />
 
-            <div className="w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-rose-500/10">
-              <Clapperboard className="w-8 h-8 text-rose-400" />
+            <div className="w-16 h-16 rounded-2xl bg-pink-500/15 text-pink-400 flex items-center justify-center border border-pink-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-pink-500/10">
+              <Clapperboard className="w-8 h-8 text-pink-400" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-lg font-black text-white group-hover:text-rose-300 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-pink-300 transition-colors">
                 ¿Qué veo hoy?
               </h3>
               <p className="text-xs text-slate-400 font-medium">
@@ -211,13 +275,14 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
               </p>
             </div>
 
-            <button className="w-full py-2.5 rounded-2xl bg-rose-600/20 group-hover:bg-rose-600 text-rose-300 group-hover:text-white border border-rose-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+            <button className="w-full py-2.5 rounded-2xl bg-pink-600/20 group-hover:bg-pink-600 text-pink-300 group-hover:text-white border border-pink-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
               <span>Entrar</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
       </main>
+
 
 
       {/* Pie inferior */}

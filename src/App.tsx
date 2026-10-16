@@ -58,6 +58,8 @@ import { TaskTracker } from './components/TaskTracker';
 import { RecipeTracker } from './components/RecipeTracker';
 import { WeeklyScheduleTracker } from './components/WeeklyScheduleTracker';
 import { WatchlistTracker } from './components/WatchlistTracker';
+import { ComprasTracker } from './components/ComprasTracker';
+import { ObjetivosTracker } from './components/ObjetivosTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
@@ -66,7 +68,17 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
-  const [currentModule, setCurrentModule] = useState<'hub' | 'finanzas' | 'gym' | 'tareas' | 'recetas' | 'horario' | 'cine'>('hub');
+  const [currentModule, setCurrentModule] = useState<
+    | 'hub'
+    | 'finanzas'
+    | 'gym'
+    | 'tareas'
+    | 'recetas'
+    | 'horario'
+    | 'cine'
+    | 'compras'
+    | 'objetivos'
+  >('hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -766,6 +778,10 @@ export default function App() {
             ? 'horario'
             : currentModule === 'cine'
             ? 'cine'
+            : currentModule === 'compras'
+            ? 'compras'
+            : currentModule === 'objetivos'
+            ? 'objetivos'
             : 'finanzas'
         }
         onCambiarModulo={(mod) => setCurrentModule(mod)}
@@ -773,7 +789,11 @@ export default function App() {
 
       {/* Contenido Principal con Contenedor Central */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {currentModule === 'gym' ? (
+        {currentModule === 'compras' ? (
+          <ComprasTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'objetivos' ? (
+          <ObjetivosTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'gym' ? (
           <GymTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'tareas' ? (
           <TaskTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
