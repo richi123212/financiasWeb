@@ -34,7 +34,6 @@ import type {
 import {
   CONFIG_AREAS_OBJETIVOS,
   CONFIG_ESTADOS_OBJETIVOS,
-  INITIAL_OBJETIVOS,
   STORAGE_KEY_OBJETIVOS,
   calcPorcentajeObjetivo,
   getDiasRestantesFechaLimite,
@@ -45,23 +44,32 @@ import { generateUUID } from '../lib/scheduleData';
 import { triggerConfetti } from '../utils/confetti';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+const TITULOS_MOCK_OBJETIVOS = [
+  'Fondo de Emergencia de $30,000 MXN',
+  'Alcanzar 100 kg en Sentadilla Profunda',
+  'Leer 6 Libros de Desarrollo y Finanzas',
+  'Armar Sistema Web de Automatización Personal',
+];
+
 interface ObjetivosTrackerProps {
   user: UserProfile;
 }
 
 export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
-  // Estado principal de objetivos
+  // Estado principal de objetivos (inicialmente sin ejemplos mock)
   const [objetivos, setObjetivos] = useState<ObjetivoMeta[]>(() => {
     try {
       const local = localStorage.getItem(STORAGE_KEY_OBJETIVOS);
       if (local !== null) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((g: ObjetivoMeta) => !TITULOS_MOCK_OBJETIVOS.includes(g.titulo));
+        }
       }
     } catch {
       // Ignorar error de lectura local
     }
-    return INITIAL_OBJETIVOS;
+    return [];
   });
 
   // Estado de sincronización
@@ -107,7 +115,7 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
     }
   }, [objetivos]);
 
-  // Sincronización Supabase
+  // Sincronización Supabase (sin re-inyección de ejemplos)
   useEffect(() => {
     const fetchFromSupabase = async () => {
       if (!isSupabaseConfigured || !user?.id || user.id === 'demo-user') {
@@ -128,27 +136,30 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
           return;
         }
 
-        if (data && data.length > 0) {
-          setObjetivos(data as ObjetivoMeta[]);
+        if (data) {
+          // Filtrar cualquier objetivo de ejemplo viejo
+          const objetivosLimpios = (data as ObjetivoMeta[]).filter(
+            (g) => !TITULOS_MOCK_OBJETIVOS.includes(g.titulo)
+          );
+
+          // Si había ejemplos en Supabase, purgarlos de la base de datos
+          const idsParaBorrar = (data as ObjetivoMeta[])
+            .filter((g) => TITULOS_MOCK_OBJETIVOS.includes(g.titulo))
+            .map((g) => g.id);
+
+          if (idsParaBorrar.length > 0) {
+            try {
+              await supabase.from('objetivos_metas').delete().in('id', idsParaBorrar);
+            } catch {
+              // Silencioso
+            }
+          }
+
+          setObjetivos(objetivosLimpios);
           setSyncStatus('online');
         } else {
-          // Semilla inicial
+          setObjetivos([]);
           setSyncStatus('online');
-          try {
-            const seed = INITIAL_OBJETIVOS.map((it) => ({
-              ...it,
-              user_id: user.id,
-            }));
-            const { data: inserted } = await supabase
-              .from('objetivos_metas')
-              .insert(seed)
-              .select('*');
-            if (inserted && inserted.length > 0) {
-              setObjetivos(inserted as ObjetivoMeta[]);
-            }
-          } catch {
-            // Ignorar
-          }
         }
       } catch {
         setSyncStatus('local');

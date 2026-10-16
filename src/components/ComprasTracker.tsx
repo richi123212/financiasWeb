@@ -33,7 +33,6 @@ import type {
 import {
   CONFIG_CATEGORIAS_COMPRAS,
   CONFIG_NECESIDAD,
-  INITIAL_WISHLIST,
   STORAGE_KEY_WISHLIST,
   calcularCostoPorUso,
   getClasificacionEfectividad,
@@ -42,23 +41,33 @@ import {
 import { generateUUID } from '../lib/scheduleData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+const TITULOS_MOCK_COMPRAS = [
+  'Audífonos Sony WH-1000XM5 con cancelación de ruido',
+  'Cinturón de Levantamiento Pesas Cuero 10mm',
+  'Cafetera Espresso Manual DeLonghi Dedica',
+  'Tenis de Colección Edición Limitada',
+  'Monitor UltraWide LG 29" IPS Full HD',
+];
+
 interface ComprasTrackerProps {
   user: UserProfile;
 }
 
 export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
-  // Estado principal de compras
+  // Estado principal de compras (inicialmente sin ejemplos mock)
   const [items, setItems] = useState<ItemCompraWishlist[]>(() => {
     try {
       const local = localStorage.getItem(STORAGE_KEY_WISHLIST);
       if (local !== null) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((it: ItemCompraWishlist) => !TITULOS_MOCK_COMPRAS.includes(it.nombre));
+        }
       }
     } catch {
       // Ignorar error de parseo
     }
-    return INITIAL_WISHLIST;
+    return [];
   });
 
   // Estado de sincronización
@@ -101,7 +110,7 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
     }
   }, [items]);
 
-  // Carga inicial y sync con Supabase (si existe la tabla)
+  // Carga inicial y sync con Supabase (sin re-inyección de ejemplos)
   useEffect(() => {
     const fetchFromSupabase = async () => {
       if (!isSupabaseConfigured || !user?.id || user.id === 'demo-user') {
@@ -122,27 +131,30 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
           return;
         }
 
-        if (data && data.length > 0) {
-          setItems(data as ItemCompraWishlist[]);
+        if (data) {
+          // Filtrar cualquier artículo de ejemplo viejo
+          const itemsLimpios = (data as ItemCompraWishlist[]).filter(
+            (it) => !TITULOS_MOCK_COMPRAS.includes(it.nombre)
+          );
+
+          // Si había ejemplos en Supabase, purgarlos de la base de datos
+          const idsParaBorrar = (data as ItemCompraWishlist[])
+            .filter((it) => TITULOS_MOCK_COMPRAS.includes(it.nombre))
+            .map((it) => it.id);
+
+          if (idsParaBorrar.length > 0) {
+            try {
+              await supabase.from('compras_wishlist').delete().in('id', idsParaBorrar);
+            } catch {
+              // Silencioso
+            }
+          }
+
+          setItems(itemsLimpios);
           setSyncStatus('online');
         } else {
-          // Primera vez para este usuario: insertar initial items
+          setItems([]);
           setSyncStatus('online');
-          try {
-            const seed = INITIAL_WISHLIST.map((it) => ({
-              ...it,
-              user_id: user.id,
-            }));
-            const { data: inserted } = await supabase
-              .from('compras_wishlist')
-              .insert(seed)
-              .select('*');
-            if (inserted && inserted.length > 0) {
-              setItems(inserted as ItemCompraWishlist[]);
-            }
-          } catch {
-            // Ignorar
-          }
         }
       } catch {
         setSyncStatus('local');

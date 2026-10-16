@@ -3,7 +3,6 @@ import type {
   CategoriaCompra,
   NivelNecesidad,
 } from '../types';
-import { generateUUID } from './scheduleData';
 
 export const STORAGE_KEY_WISHLIST = 'finanzshield_compras_wishlist_v1';
 
@@ -184,90 +183,5 @@ export function getDiasRestantesEnfriamiento(
   };
 }
 
-// Helper para fecha en días hacia el pasado
-const diasAtras = (dias: number): string => {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  return d.toISOString();
-};
-
-export const INITIAL_WISHLIST: ItemCompraWishlist[] = [
-  {
-    id: generateUUID(),
-    user_id: 'demo-user',
-    nombre: 'Audífonos Sony WH-1000XM5 con cancelación de ruido',
-    enlace_url: 'https://www.amazon.com.mx/dp/B09XS7JWHH',
-    precio_estimado: 6499,
-    categoria: 'Trabajo / Tecnología',
-    usos_estimados_ano: 300,
-    nivel_necesidad: 'util',
-    escala_necesidad: 4,
-    estado: 'espera',
-    dias_espera_total: 30,
-    created_at: diasAtras(14), // 14 días transcurridos -> 16 restantes
-    notas: 'Para concentrarme en la oficina y llamadas de trabajo. Excelente cancelación de ruido.',
-  },
-  {
-    id: generateUUID(),
-    user_id: 'demo-user',
-    nombre: 'Cinturón de Levantamiento Pesas Cuero 10mm',
-    enlace_url: 'https://articulo.mercadolibre.com.mx/MLM-cinturon-pesas',
-    precio_estimado: 1250,
-    categoria: 'Gym / Salud',
-    usos_estimados_ano: 160,
-    nivel_necesidad: 'esencial',
-    escala_necesidad: 5,
-    estado: 'aprobado',
-    dias_espera_total: 30,
-    created_at: diasAtras(34), // Más de 30 días -> Aprobado para compra
-    notas: 'Vital para proteger la zona lumbar en series pesadas de sentadilla y peso muerto.',
-  },
-  {
-    id: generateUUID(),
-    user_id: 'demo-user',
-    nombre: 'Cafetera Espresso Manual DeLonghi Dedica',
-    enlace_url: 'https://www.amazon.com.mx/dp/B06XW7Q3XG',
-    precio_estimado: 3899,
-    categoria: 'Hogar',
-    usos_estimados_ano: 350,
-    nivel_necesidad: 'util',
-    escala_necesidad: 4,
-    estado: 'espera',
-    dias_espera_total: 30,
-    created_at: diasAtras(6), // 6 días transcurridos -> 24 restantes
-    notas: 'Ahorro enorme vs comprar café en cafetería a diario ($85 c/u).',
-  },
-  {
-    id: generateUUID(),
-    user_id: 'demo-user',
-    nombre: 'Tenis de Colección Edición Limitada',
-    enlace_url: 'https://www.nike.com/mx/',
-    precio_estimado: 3699,
-    categoria: 'Ropa & Estilo',
-    usos_estimados_ano: 15,
-    nivel_necesidad: 'capricho',
-    escala_necesidad: 2,
-    estado: 'descartado',
-    dias_espera_total: 30,
-    created_at: diasAtras(45),
-    descartado_en: diasAtras(10),
-    notas: 'Pasaron los 30 días y me di cuenta de que ya tengo 3 pares similares sin usar. ¡Ahorro asegurado!',
-  },
-  {
-    id: generateUUID(),
-    user_id: 'demo-user',
-    nombre: 'Monitor UltraWide LG 29" IPS Full HD',
-    enlace_url: 'https://www.amazon.com.mx/dp/B0876DBCBX',
-    precio_estimado: 4499,
-    categoria: 'Trabajo / Tecnología',
-    usos_estimados_ano: 260,
-    nivel_necesidad: 'util',
-    escala_necesidad: 5,
-    estado: 'comprado',
-    dias_espera_total: 30,
-    created_at: diasAtras(100),
-    comprado_en: diasAtras(40),
-    fecha_evaluacion_90dias: diasAtras(-50), // En 50 días se cumplen los 90 días
-    notas: 'Comprado tras pasar la evaluación. Aumentó mi productividad al programar.',
-  },
-];
+// Sin artículos de ejemplo por defecto (lista limpia)
+export const INITIAL_WISHLIST: ItemCompraWishlist[] = [];
