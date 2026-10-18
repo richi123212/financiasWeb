@@ -1091,10 +1091,10 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
 
       {/* MODAL: FORMULARIO RÁPIDO PARA AÑADIR ARTÍCULO */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl bg-[#0F172A] border border-slate-800 p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="relative w-full max-w-lg rounded-3xl bg-[#0F172A] border border-slate-800 p-4 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[90dvh] flex flex-col overflow-hidden">
             {/* Cabecera del Modal */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-400 flex items-center justify-center">
                   <ShoppingBag className="w-4 h-4" />
@@ -1106,6 +1106,7 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
@@ -1113,8 +1114,8 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
               </button>
             </div>
 
-            {/* Formulario */}
-            <form onSubmit={handleGuardarArticulo} className="space-y-4">
+            {/* Formulario con scroll vertical */}
+            <form onSubmit={handleGuardarArticulo} className="flex-1 overflow-y-auto pr-1 space-y-4 py-3 -mr-1">
               {/* Nombre */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
@@ -1274,12 +1275,12 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
                 </div>
               )}
 
-              {/* Botones de acción */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              {/* Botones de acción siempre visibles al final */}
+              <div className="sticky -bottom-3 -mx-1 px-2 pt-3 pb-2 bg-[#0F172A]/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1298,8 +1299,8 @@ export const ComprasTracker: React.FC<ComprasTrackerProps> = ({ user }) => {
 
       {/* MODAL: MINI-EVALUACIÓN A LOS 90 DÍAS DE LA COMPRA */}
       {isEvaluationModalOpen && evaluatingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl bg-[#0F172A] border border-slate-800 p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="relative w-full max-w-md rounded-3xl bg-[#0F172A] border border-slate-800 p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-center my-auto max-h-[90dvh] overflow-y-auto">
             <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-400 flex items-center justify-center mx-auto">
               <Star className="w-6 h-6 text-teal-400" />
             </div>

@@ -308,3 +308,34 @@ CREATE POLICY "Usuarios acceden solo a sus compras" ON public.compras_wishlist
 DROP POLICY IF EXISTS "Usuarios acceden solo a sus objetivos" ON public.objetivos_metas;
 CREATE POLICY "Usuarios acceden solo a sus objetivos" ON public.objetivos_metas
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ==============================================================================
+-- 14. TABLA: boveda_riqueza_historial (Módulo Riqueza: Bóveda, retención y runway)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.boveda_riqueza_historial (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    etiqueta_periodo TEXT NOT NULL,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    sueldo_ingresado NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    costos_fijos_total NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    inyeccion_boveda NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    margen_libre NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    tasa_retencion NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    boveda_acumulada NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_boveda_user_id ON public.boveda_riqueza_historial(user_id);
+CREATE INDEX IF NOT EXISTS idx_boveda_fecha ON public.boveda_riqueza_historial(fecha);
+
+ALTER TABLE public.boveda_riqueza_historial ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Usuarios acceden solo a su historial de riqueza" ON public.boveda_riqueza_historial;
+CREATE POLICY "Usuarios acceden solo a su historial de riqueza" ON public.boveda_riqueza_historial
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Compatibilidad para campos nuevos
+ALTER TABLE public.horarios_semanales ADD COLUMN IF NOT EXISTS completado_hoy BOOLEAN DEFAULT false;
+ALTER TABLE public.configuracion_usuario ADD COLUMN IF NOT EXISTS boveda_total NUMERIC(14, 2) DEFAULT 0;
+

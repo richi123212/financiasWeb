@@ -381,3 +381,38 @@ export interface ObjetivoMeta {
   created_at: string;
   updated_at?: string;
 }
+
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE RIQUEZA (BÓVEDA & LIBERTAD)
+// ----------------------------------------------------
+export interface ConceptoCostoFijo {
+  id: string;
+  nombre: string;
+  monto: number;
+  categoria?: string;
+}
+
+export interface CierrePeriodoRiqueza {
+  id: string;
+  user_id: string;
+  fecha: string; // YYYY-MM-DD
+  etiqueta_periodo: string; // ej. "1ra Quincena Octubre 2026"
+  sueldo_ingresado: number;
+  costos_fijos_total: number;
+  inyeccion_boveda: number;
+  margen_libre: number;
+  tasa_retencion: number; // Porcentaje (%)
+  boveda_acumulada: number;
+  created_at: string;
+}
+
+export interface EstadoRiqueza {
+  boveda_total: number;
+  sueldo_base: number;
+  tipo_periodo: 'quincenal' | 'mensual';
+  costos_fijos: ConceptoCostoFijo[];
+  inyeccion_actual: number;
+  dias_proximo_pago?: number;
+  historial_cierres: CierrePeriodoRiqueza[];
+}
+

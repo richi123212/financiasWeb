@@ -11,6 +11,7 @@ import {
   Clapperboard,
   ShoppingBag,
   Target,
+  Vault,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 
@@ -19,6 +20,7 @@ interface ModuleHubProps {
   onSelectModule: (
     module:
       | 'finanzas'
+      | 'riqueza'
       | 'gym'
       | 'tareas'
       | 'recetas'
@@ -95,6 +97,32 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
 
             <button className="w-full py-2.5 rounded-2xl bg-emerald-600/20 group-hover:bg-emerald-600 text-emerald-300 group-hover:text-white border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition-all">
               <span>Entrar</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarjeta: RIQUEZA (Bóveda & Libertad) */}
+          <div
+            onClick={() => onSelectModule('riqueza')}
+            className="group relative rounded-3xl bg-gradient-to-b from-[#10241E] to-[#0A1713] border border-emerald-500/40 hover:border-emerald-400 p-5 shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer flex flex-col items-center text-center justify-between overflow-hidden gap-5"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/30 transition-all duration-500" />
+
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/15">
+              <Vault className="w-8 h-8 text-emerald-400" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white group-hover:text-emerald-300 transition-colors">
+                Riqueza
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Bóveda, porcentajes y libertad
+              </p>
+            </div>
+
+            <button className="w-full py-2.5 rounded-2xl bg-emerald-600/25 group-hover:bg-emerald-500 text-emerald-300 group-hover:text-slate-950 border border-emerald-500/40 font-black text-xs flex items-center justify-center gap-2 transition-all">
+              <span>Entrar →</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

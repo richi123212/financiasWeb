@@ -14,6 +14,7 @@ import {
   Clapperboard,
   ShoppingBag,
   Target,
+  Vault,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -26,6 +27,7 @@ interface NavbarProps {
   onOpenNewModal: () => void;
   moduloActivo:
     | 'finanzas'
+    | 'riqueza'
     | 'gym'
     | 'tareas'
     | 'recetas'
@@ -36,6 +38,7 @@ interface NavbarProps {
   onCambiarModulo: (
     modulo:
       | 'finanzas'
+      | 'riqueza'
       | 'gym'
       | 'tareas'
       | 'recetas'
@@ -104,6 +107,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       Finan<span className="text-emerald-400">zas</span>
                     </>
+                  ) : moduloActivo === 'riqueza' ? (
+                    <>
+                      Rique<span className="text-emerald-400">za</span>
+                    </>
                   ) : moduloActivo === 'compras' ? (
                     <>
                       Com<span className="text-teal-400">pras</span>
@@ -153,6 +160,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Wallet className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Finanzas</span>
+            </button>
+
+            <button
+              onClick={() => onCambiarModulo('riqueza')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                moduloActivo === 'riqueza'
+                  ? 'bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Vault className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Riqueza</span>
             </button>
 
             <button
@@ -264,6 +283,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[10px] text-slate-400">
                   {moduloActivo === 'finanzas'
                     ? 'Finanzas'
+                    : moduloActivo === 'riqueza'
+                    ? 'Riqueza & Bóveda'
                     : moduloActivo === 'compras'
                     ? 'Compras & Wishlist'
                     : moduloActivo === 'objetivos'

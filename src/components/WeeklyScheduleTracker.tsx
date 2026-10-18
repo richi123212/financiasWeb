@@ -36,6 +36,29 @@ import {
 } from '../lib/scheduleData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+const STORAGE_KEY_HORARIOS_COMPLETADOS = 'finanzshield_horarios_completados_v2';
+
+const getCompletadosMap = (userId?: string): Record<string, boolean> => {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_HORARIOS_COMPLETADOS}_${userId || 'demo'}`);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return {};
+};
+
+const saveCompletado = (userId: string | undefined, id: string, completado: boolean) => {
+  try {
+    const key = `${STORAGE_KEY_HORARIOS_COMPLETADOS}_${userId || 'demo'}`;
+    const map = getCompletadosMap(userId);
+    map[id] = completado;
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+};
+
 interface WeeklyScheduleTrackerProps {
   user: UserProfile;
 }
@@ -52,12 +75,22 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
       const local = localStorage.getItem(STORAGE_KEY_HORARIOS);
       if (initialized && local !== null) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const doneMap = getCompletadosMap(user?.id);
+          return parsed.map((h: BloqueHorario) => ({
+            ...h,
+            completado_hoy: h.completado_hoy ?? !!doneMap[h.id],
+          }));
+        }
       }
     } catch {
       // Ignorar error al leer de localStorage
     }
-    return INITIAL_HORARIOS;
+    const doneMap = getCompletadosMap(user?.id);
+    return INITIAL_HORARIOS.map((h) => ({
+      ...h,
+      completado_hoy: h.completado_hoy ?? !!doneMap[h.id],
+    }));
   });
 
   // Estado de sincronización en línea con Supabase
@@ -129,7 +162,12 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
         const alreadySeeded = localStorage.getItem(seededKey);
 
         if (data && data.length > 0) {
-          setHorarios(data as BloqueHorario[]);
+          const doneMap = getCompletadosMap(user.id);
+          const merged = (data as BloqueHorario[]).map((item) => ({
+            ...item,
+            completado_hoy: item.completado_hoy ?? !!doneMap[item.id],
+          }));
+          setHorarios(merged);
           localStorage.setItem(seededKey, 'true');
           setSyncStatus('online');
         } else if (!alreadySeeded) {
@@ -467,11 +505,32 @@ export const WeeklyScheduleTracker: React.FC<WeeklyScheduleTrackerProps> = ({ us
     }
   };
 
-  // Alternar completado hoy
-  const toggleCompletadoHoy = (id: string) => {
+  // Alternar completado hoy con persistencia asegurada
+  const toggleCompletadoHoy = async (id: string) => {
+    const target = horarios.find((h) => h.id === id);
+    if (!target) return;
+    const nuevoEstado = !target.completado_hoy;
+
     setHorarios((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, completado_hoy: !h.completado_hoy } : h))
+      prev.map((h) => (h.id === id ? { ...h, completado_hoy: nuevoEstado } : h))
     );
+
+    saveCompletado(user?.id, id, nuevoEstado);
+    showToast(nuevoEstado ? `✓ Actividad realizada: "${target.titulo}"` : `Actividad marcada como pendiente`);
+
+    if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
+      try {
+        await supabase
+          .from('horarios_semanales')
+          .update({
+            completado_hoy: nuevoEstado,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+      } catch (err) {
+        console.warn('Sync horario completado:', err);
+      }
+    }
   };
 
   // Copiar horario de un día a otros seleccionados

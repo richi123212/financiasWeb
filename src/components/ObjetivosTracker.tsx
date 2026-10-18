@@ -327,7 +327,7 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
   };
 
   // Actualización rápida de avance (+ / - con 1 toque)
-  const handleAjustarValor = (goal: ObjetivoMeta, delta: number) => {
+  const handleAjustarValor = async (goal: ObjetivoMeta, delta: number) => {
     const rango = Math.abs(goal.valor_meta - goal.valor_inicial) || 100;
     // Paso adaptativo: si es dinero grande, paso de 100; si es pequeño, paso de 1
     let paso = delta;
@@ -339,59 +339,79 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
     const nuevoValor = Number((goal.valor_actual + paso).toFixed(2));
     const porcentajeNuevo = calcPorcentajeObjetivo(nuevoValor, goal.valor_inicial, goal.valor_meta);
     const acabaDeCumplirse = porcentajeNuevo >= 100 && goal.estado !== 'cumplido';
+    const nuevoEstado = acabaDeCumplirse ? ('cumplido' as const) : goal.estado;
+    const fechaCumplido = acabaDeCumplirse ? new Date().toISOString() : goal.cumplido_en;
 
     const actualizados = objetivos.map((g) => {
       if (g.id === goal.id) {
         return {
           ...g,
           valor_actual: nuevoValor,
-          estado: acabaDeCumplirse ? ('cumplido' as const) : g.estado,
-          cumplido_en: acabaDeCumplirse ? new Date().toISOString() : g.cumplido_en,
+          estado: nuevoEstado,
+          cumplido_en: fechaCumplido,
+          updated_at: new Date().toISOString(),
         };
       }
       return g;
     });
 
     setObjetivos(actualizados);
+    try {
+      localStorage.setItem(STORAGE_KEY_OBJETIVOS, JSON.stringify(actualizados));
+    } catch {
+      // ignore
+    }
 
     if (acabaDeCumplirse) {
       triggerConfetti();
       showToast(`🏆 ¡Victoria! Alcanzaste el 100% de "${goal.titulo}".`);
+    } else {
+      showToast(`✓ Avance actualizado: ${nuevoValor} ${goal.unidad_medida}`);
     }
 
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
-        supabase
+        await supabase
           .from('objetivos_metas')
           .update({
             valor_actual: nuevoValor,
-            estado: acabaDeCumplirse ? 'cumplido' : goal.estado,
+            estado: nuevoEstado,
+            cumplido_en: fechaCumplido || null,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', goal.id);
-      } catch {
-        // Ignorar
+      } catch (err) {
+        console.warn('Error actualizando objetivo en Supabase:', err);
       }
     }
   };
 
   // Actualización directa desde input numérico
-  const handleSetValorDirecto = (goal: ObjetivoMeta, nuevoValor: number) => {
+  const handleSetValorDirecto = async (goal: ObjetivoMeta, nuevoValor: number) => {
     const porcentajeNuevo = calcPorcentajeObjetivo(nuevoValor, goal.valor_inicial, goal.valor_meta);
     const acabaDeCumplirse = porcentajeNuevo >= 100 && goal.estado !== 'cumplido';
+    const nuevoEstado = acabaDeCumplirse ? ('cumplido' as const) : goal.estado;
+    const fechaCumplido = acabaDeCumplirse ? new Date().toISOString() : goal.cumplido_en;
 
     const actualizados = objetivos.map((g) => {
       if (g.id === goal.id) {
         return {
           ...g,
           valor_actual: nuevoValor,
-          estado: acabaDeCumplirse ? ('cumplido' as const) : g.estado,
-          cumplido_en: acabaDeCumplirse ? new Date().toISOString() : g.cumplido_en,
+          estado: nuevoEstado,
+          cumplido_en: fechaCumplido,
+          updated_at: new Date().toISOString(),
         };
       }
       return g;
     });
 
     setObjetivos(actualizados);
+    try {
+      localStorage.setItem(STORAGE_KEY_OBJETIVOS, JSON.stringify(actualizados));
+    } catch {
+      // ignore
+    }
 
     if (acabaDeCumplirse) {
       triggerConfetti();
@@ -400,15 +420,77 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
 
     if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
       try {
-        supabase
+        await supabase
           .from('objetivos_metas')
           .update({
             valor_actual: nuevoValor,
-            estado: acabaDeCumplirse ? 'cumplido' : goal.estado,
+            estado: nuevoEstado,
+            cumplido_en: fechaCumplido || null,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', goal.id);
-      } catch {
-        // Ignorar
+      } catch (err) {
+        console.warn('Error guardando valor directo en Supabase:', err);
+      }
+    }
+  };
+
+  // Actualización directa de porcentaje de progreso (ej. 70%) con persistencia garantizada
+  const handleSetProgresoPorcentaje = async (goal: ObjetivoMeta, nuevoPorcentaje: number) => {
+    const pct = Math.max(0, Math.min(100, Math.round(nuevoPorcentaje)));
+    const valIni = goal.valor_inicial ?? 0;
+    let valMeta = goal.valor_meta;
+    if (valMeta <= valIni) {
+      valMeta = 100;
+    }
+
+    const nuevoValorActual = Number((valIni + ((valMeta - valIni) * (pct / 100))).toFixed(2));
+    const acabaDeCumplirse = pct >= 100 && goal.estado !== 'cumplido';
+    const nuevoEstado: EstadoObjetivo = pct >= 100 ? 'cumplido' : (goal.estado === 'cumplido' ? 'en_progreso' : goal.estado);
+    const fechaCumplido = pct >= 100 ? (goal.cumplido_en || new Date().toISOString()) : undefined;
+
+    const actualizados = objetivos.map((g) => {
+      if (g.id === goal.id) {
+        return {
+          ...g,
+          valor_actual: nuevoValorActual,
+          valor_meta: valMeta,
+          estado: nuevoEstado,
+          cumplido_en: fechaCumplido,
+          updated_at: new Date().toISOString(),
+        };
+      }
+      return g;
+    });
+
+    setObjetivos(actualizados);
+    try {
+      localStorage.setItem(STORAGE_KEY_OBJETIVOS, JSON.stringify(actualizados));
+    } catch {
+      // ignore
+    }
+
+    if (acabaDeCumplirse) {
+      triggerConfetti();
+      showToast(`🎉 ¡Victoria! Alcanzaste el 100% de "${goal.titulo}".`);
+    } else {
+      showToast(`✓ Progreso guardado: ${pct}%`);
+    }
+
+    if (isSupabaseConfigured && user?.id && user.id !== 'demo-user') {
+      try {
+        await supabase
+          .from('objetivos_metas')
+          .update({
+            valor_actual: nuevoValorActual,
+            valor_meta: valMeta,
+            estado: nuevoEstado,
+            cumplido_en: fechaCumplido || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', goal.id);
+      } catch (err) {
+        console.warn('Error al guardar porcentaje en Supabase:', err);
       }
     }
   };
@@ -979,33 +1061,97 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
                       </div>
                     </div>
 
-                    {/* Control Rápido de Actualización (+ y - con 1 toque o input directo) */}
-                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-3">
-                      <span className="text-[11px] font-bold text-slate-400">Actualizar avance:</span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleAjustarValor(goal, -1)}
-                          className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-sm transition-all cursor-pointer border border-slate-700"
-                          title="Restar paso rápido"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
+                    {/* Control de Progreso (%) directo + Atajos rápidos */}
+                    <div className="pt-2.5 border-t border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <span>Estatus de Avance:</span>
+                          <span className="text-amber-400 font-extrabold font-mono text-xs">{porcentaje}%</span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Definir %:</label>
+                          <div className="relative flex items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={porcentaje}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!isNaN(val)) {
+                                  handleSetProgresoPorcentaje(goal, val);
+                                }
+                              }}
+                              className="w-16 text-center py-1 pr-4 rounded-xl bg-slate-950 border border-amber-500/50 text-xs font-black text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                            <span className="absolute right-1.5 text-[10px] font-bold text-amber-400 pointer-events-none">%</span>
+                          </div>
+                        </div>
+                      </div>
 
+                      {/* Slider de porcentaje interactivo para arrastrar directamente */}
+                      <div className="space-y-1">
                         <input
-                          type="number"
-                          step="any"
-                          value={goal.valor_actual}
-                          onChange={(e) => handleSetValorDirecto(goal, parseFloat(e.target.value) || 0)}
-                          className="w-24 text-center py-1 rounded-xl bg-slate-950 border border-slate-700 text-xs font-black text-white focus:outline-none focus:border-amber-500"
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={porcentaje}
+                          onChange={(e) => handleSetProgresoPorcentaje(goal, parseInt(e.target.value) || 0)}
+                          className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
                         />
+                      </div>
 
-                        <button
-                          onClick={() => handleAjustarValor(goal, 1)}
-                          className="w-8 h-8 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 flex items-center justify-center font-bold text-sm transition-all cursor-pointer border border-amber-500/40"
-                          title="Sumar paso rápido"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                      {/* Chips rápidos de porcentaje: 25%, 50%, 70%, 100% */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        {[25, 50, 70, 100].map((presetPct) => {
+                          const isCurrent = Math.abs(porcentaje - presetPct) <= 2;
+                          return (
+                            <button
+                              key={presetPct}
+                              type="button"
+                              onClick={() => handleSetProgresoPorcentaje(goal, presetPct)}
+                              className={`flex-1 py-1 rounded-xl text-[11px] font-extrabold border transition-all cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm shadow-amber-500/20'
+                                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:text-white'
+                              }`}
+                            >
+                              {presetPct}%
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Ajuste fino por unidades numéricas */}
+                      <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>Ajustar valor ({goal.unidad_medida}):</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleAjustarValor(goal, -1)}
+                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-xs transition-all cursor-pointer border border-slate-700"
+                            title="Restar paso rápido"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+
+                          <input
+                            type="number"
+                            step="any"
+                            value={goal.valor_actual}
+                            onChange={(e) => handleSetValorDirecto(goal, parseFloat(e.target.value) || 0)}
+                            className="w-20 text-center py-0.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono font-black text-white focus:outline-none focus:border-amber-500"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => handleAjustarValor(goal, 1)}
+                            className="w-7 h-7 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 flex items-center justify-center font-bold text-xs transition-all cursor-pointer border border-amber-500/40"
+                            title="Sumar paso rápido"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1267,6 +1413,58 @@ export const ObjetivosTracker: React.FC<ObjetivosTrackerProps> = ({ user }) => {
                     onChange={(e) => setFormUnidad(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-bold focus:outline-none focus:border-amber-500/60"
                   />
+                </div>
+              </div>
+
+              {/* Progreso Directo en % (Sincronizado) */}
+              <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-amber-300">Progreso Estimado en %:</span>
+                  <div className="flex items-center gap-1 font-mono font-bold text-amber-400">
+                    <span>
+                      {calcPorcentajeObjetivo(
+                        parseFloat(formValorActual) || 0,
+                        parseFloat(formValorInicial) || 0,
+                        parseFloat(formValorMeta) || 100
+                      )}
+                    </span>
+                    <span>%</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={calcPorcentajeObjetivo(
+                    parseFloat(formValorActual) || 0,
+                    parseFloat(formValorInicial) || 0,
+                    parseFloat(formValorMeta) || 100
+                  )}
+                  onChange={(e) => {
+                    const pct = parseInt(e.target.value) || 0;
+                    const valIni = parseFloat(formValorInicial) || 0;
+                    const valMeta = parseFloat(formValorMeta) || 100;
+                    const nuevo = Number((valIni + ((valMeta - valIni) * (pct / 100))).toFixed(2));
+                    setFormValorActual(String(nuevo));
+                  }}
+                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                />
+                <div className="flex items-center justify-between gap-1.5 pt-1">
+                  {[25, 50, 70, 100].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        const valIni = parseFloat(formValorInicial) || 0;
+                        const valMeta = parseFloat(formValorMeta) || 100;
+                        const nuevo = Number((valIni + ((valMeta - valIni) * (preset / 100))).toFixed(2));
+                        setFormValorActual(String(nuevo));
+                      }}
+                      className="flex-1 py-1 rounded-lg text-[10px] font-extrabold bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-slate-300 hover:text-white transition-all cursor-pointer"
+                    >
+                      {preset}%
+                    </button>
+                  ))}
                 </div>
               </div>
 

@@ -60,6 +60,7 @@ import { WeeklyScheduleTracker } from './components/WeeklyScheduleTracker';
 import { WatchlistTracker } from './components/WatchlistTracker';
 import { ComprasTracker } from './components/ComprasTracker';
 import { ObjetivosTracker } from './components/ObjetivosTracker';
+import { RiquezaTracker } from './components/RiquezaTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
@@ -71,6 +72,7 @@ export default function App() {
   const [currentModule, setCurrentModule] = useState<
     | 'hub'
     | 'finanzas'
+    | 'riqueza'
     | 'gym'
     | 'tareas'
     | 'recetas'
@@ -768,7 +770,9 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
         moduloActivo={
-          currentModule === 'gym'
+          currentModule === 'riqueza'
+            ? 'riqueza'
+            : currentModule === 'gym'
             ? 'gym'
             : currentModule === 'tareas'
             ? 'tareas'
@@ -789,7 +793,9 @@ export default function App() {
 
       {/* Contenido Principal con Contenedor Central */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {currentModule === 'compras' ? (
+        {currentModule === 'riqueza' ? (
+          <RiquezaTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+        ) : currentModule === 'compras' ? (
           <ComprasTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'objetivos' ? (
           <ObjetivosTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
