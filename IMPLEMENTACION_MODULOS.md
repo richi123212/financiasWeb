@@ -91,8 +91,14 @@ git push origin main
 
 Si Vercel tiene este repositorio conectado y `main` es su Production Branch, el push inicia el despliegue. Comprueba el estado en Deployments y repite las pruebas con sesión real. Los cambios en variables de entorno requieren un despliegue nuevo.
 
-No se ejecutó la migración remota ni se hizo commit, push o despliegue desde esta implementación. Las pruebas automáticas de cálculo no sustituyen la prueba de RLS y RPC en tu instancia real de Supabase.
+La migración remota se aplica desde el panel de Supabase. Las pruebas automáticas de cálculo no sustituyen la prueba de RLS y RPC en tu instancia real.
 
-Validación local realizada: cinco pruebas aprobadas, compilación TypeScript/Vite correcta y lint sin errores. Los archivos nuevos pasan lint sin advertencias; el lint general conserva advertencias de componentes existentes y Vite advierte sobre el tamaño del bundle. La verificación visual automatizada quedó pendiente porque el navegador de herramientas no pudo iniciar por un error del entorno de seguridad de Windows.
+Validación local realizada: cinco pruebas financieras aprobadas, compilación TypeScript/Vite correcta y lint sin errores en los componentes modificados. El lint general conserva advertencias de componentes existentes y Vite advierte sobre el tamaño del bundle.
+
+## Mejoras de experiencia y diseño
+
+Los dos módulos comparten estilos en `src/components/modules.css`, componentes de interfaz en `ModuleUI.tsx` y colores seguros en `moduleTheme.ts`. Notas usa una biblioteca lateral con contadores, tarjetas por color, filtros, vistas de lista y cuadrícula, acciones de formato y avisos al guardar. Cajitas muestra la distribución del dinero, tarjetas con progreso, historial visual, montos rápidos y el efecto de cada movimiento antes de confirmar. Los modales permiten Escape, mantienen el foco dentro y bloquean el desplazamiento del fondo. Se respeta la preferencia de movimiento reducido.
+
+Se verificaron con Chromium y datos ficticios locales las vistas a 1440 y 390 píxeles, sin desbordamiento horizontal, y los flujos de notas, carpetas, filtros y movimientos de ahorro. Estas mejoras no requieren SQL adicional.
 
 Documentación oficial: https://vercel.com/docs/frameworks/frontend/vite · https://vercel.com/docs/git · https://supabase.com/docs/guides/database/postgres/row-level-security · https://supabase.com/docs/guides/deployment/database-migrations

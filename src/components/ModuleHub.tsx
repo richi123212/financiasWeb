@@ -12,6 +12,8 @@ import {
   ShoppingBag,
   Target,
   Vault,
+  NotebookPen,
+  PiggyBank,
 } from 'lucide-react';
 import type { UserProfile } from '../types';
 
@@ -77,7 +79,7 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
 
         {/* Tarjetas de Selección: 8 módulos organizados en grid 4x2 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-          {([{ id: 'notas', title: 'Notas & Carpetas', description: 'Ideas, etiquetas y notas destacadas' }, { id: 'cajitas', title: 'Reserva & Ahorros', description: 'Cajitas, metas y dinero protegido' }] as const).map(module => <button key={module.id} onClick={() => onSelectModule(module.id)} className="rounded-3xl bg-[#151D2E] border border-slate-800 hover:border-emerald-400 p-6 text-center space-y-4"><Wallet className="w-10 h-10 text-emerald-400 mx-auto" /><h3 className="text-lg font-black">{module.title}</h3><p className="text-xs text-slate-400">{module.description}</p><span className="block text-emerald-300">Entrar →</span></button>)}
+          {([{ id: 'notas', title: 'Notas & Carpetas', description: 'Un espacio para tus mejores ideas', Icon: NotebookPen, color: 'indigo' }, { id: 'cajitas', title: 'Reserva & Ahorros', description: 'Tu tranquilidad, un apartado a la vez', Icon: PiggyBank, color: 'emerald' }] as const).map(module => <button key={module.id} onClick={() => onSelectModule(module.id)} className={`group relative overflow-hidden rounded-3xl border p-6 flex flex-col items-center justify-between gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${module.color === 'indigo' ? 'bg-gradient-to-br from-indigo-950/60 to-[#101726] border-indigo-500/25 hover:border-indigo-400/60' : 'bg-gradient-to-br from-emerald-950/60 to-[#101726] border-emerald-500/25 hover:border-emerald-400/60'}`}><div className={`w-16 h-16 rounded-2xl border flex items-center justify-center transition-transform group-hover:scale-110 ${module.color === 'indigo' ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'}`}><module.Icon className="w-8 h-8" strokeWidth={1.6} /></div><div><h3 className="text-lg font-black">{module.title}</h3><p className="text-xs text-slate-400 mt-1.5">{module.description}</p></div><span className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold border ${module.color === 'indigo' ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20' : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'}`}>Abrir mi espacio<ArrowRight size={14} /></span></button>)}
           {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}

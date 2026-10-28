@@ -31,5 +31,5 @@ export function useModuleData<T>(key: string, demo: boolean, initial: T, load: (
     return () => { counter.current++; window.removeEventListener('focus', refresh); };
   }, [reload]);
   const saveDemo = (next: T) => { localStorage.setItem(key, JSON.stringify(next)); setData(next); };
-  return { data, loading: loading || loadedScope !== scope, error: loadedScope === scope ? error : '', reload, saveDemo };
+  return { data, loading: loadedScope !== scope, refreshing: loading && loadedScope === scope, error: loadedScope === scope ? error : '', reload, saveDemo };
 }
