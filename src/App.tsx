@@ -62,6 +62,11 @@ import { ComprasTracker } from './components/ComprasTracker';
 import { ObjetivosTracker } from './components/ObjetivosTracker';
 import { RiquezaTracker } from './components/RiquezaTracker';
 import { EditSueldoModal } from './components/EditSueldoModal';
+import { NotesTracker } from './components/NotesTracker';
+import { CajitasTracker, ReserveSummary } from './components/CajitasTracker';
+import { useModuleData } from './hooks/useModuleData';
+import { getApartados } from './lib/cajitasData';
+import type { CajitaApartado } from './types';
 
 const STORAGE_KEY = 'finanzshield_local_state_v1';
 
@@ -71,6 +76,8 @@ export default function App() {
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [currentModule, setCurrentModule] = useState<
     | 'hub'
+    | 'notas'
+    | 'cajitas'
     | 'finanzas'
     | 'riqueza'
     | 'gym'
@@ -90,6 +97,8 @@ export default function App() {
   const [gastosFijos, setGastosFijos] = useState<GastoFuturoFijo[]>(INITIAL_GASTOS_FIJOS);
   const [saldoBaseEfectivo, setSaldoBaseEfectivo] = useState<number>(194.14);
   const [sueldoQuincenal, setSueldoQuincenal] = useState<number>(6750);
+  const reserves = useModuleData<CajitaApartado[]>(`cajitas-demo:${user?.id || 'anonymous'}`, isDemoMode || !user, [], () => getApartados(user!.id));
+  const totalReservado = reserves.data.reduce((sum, a) => sum + a.current_balance, 0);
 
   // Navegación y Modales
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones'>('dashboard');
@@ -327,9 +336,10 @@ export default function App() {
       transacciones,
       inversiones,
       gastosFijos,
-      saldoBaseEfectivo
+      saldoBaseEfectivo,
+      totalReservado
     );
-  }, [tarjetas, comprasMsi, transacciones, inversiones, gastosFijos, saldoBaseEfectivo]);
+  }, [tarjetas, comprasMsi, transacciones, inversiones, gastosFijos, saldoBaseEfectivo, totalReservado]);
 
   // Cálculos individuales por tarjeta
   const resumenesTarjetas = useMemo(() => {
@@ -343,9 +353,9 @@ export default function App() {
       metricas.margenDespuesDeGastosFijos,
       sueldoQuincenal,
       metricas.deudaTotalConGastosFijos,
-      metricas.saldoEfectivoDebito
+      metricas.disponibleRealGastos
     );
-  }, [metricas.margenDespuesDeGastosFijos, sueldoQuincenal, metricas.deudaTotalConGastosFijos, metricas.saldoEfectivoDebito]);
+  }, [metricas.margenDespuesDeGastosFijos, sueldoQuincenal, metricas.deudaTotalConGastosFijos, metricas.disponibleRealGastos]);
 
   // 3. Manejadores de acciones (Transacciones, Tarjetas, MSI, Inversiones, Gastos Fijos)
   const handleRegistrarTransaccion = async (data: {
@@ -770,7 +780,9 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
         moduloActivo={
-          currentModule === 'riqueza'
+          currentModule === 'notas' || currentModule === 'cajitas'
+            ? currentModule
+            : currentModule === 'riqueza'
             ? 'riqueza'
             : currentModule === 'gym'
             ? 'gym'
@@ -793,10 +805,18 @@ export default function App() {
 
       {/* Contenido Principal con Contenedor Central */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {currentModule === 'riqueza' ? (
+        {currentModule === 'notas' ? (
+          <NotesTracker key={user!.id} user={user!} demo={isDemoMode} />
+        ) : (currentModule === 'finanzas' || currentModule === 'cajitas' || currentModule === 'compras') && (reserves.loading || reserves.error) ? (
+          <div role="status" className="rounded-2xl border border-amber-500/40 p-6">{reserves.loading ? 'Cargando reservas para calcular tu disponible…' : `No se puede calcular el disponible sin cargar las reservas: ${reserves.error}. Ejecuta la migración de Supabase.`}<button className="ml-3 underline" onClick={() => void reserves.reload()}>Reintentar</button></div>
+        ) : currentModule === 'cajitas' ? (
+          <CajitasTracker key={user!.id} user={user!} demo={isDemoMode} apartados={reserves.data} total={saldoBaseEfectivo} reload={reserves.reload} saveDemo={reserves.saveDemo} />
+        ) : currentModule === 'riqueza' ? (
           <RiquezaTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'compras' ? (
+          <><ReserveSummary total={saldoBaseEfectivo} protectedAmount={totalReservado} /><p className="text-emerald-300">Saldo libre para compras, después de reservas, deudas y gastos fijos: {formatCurrency(metricas.margenDespuesDeGastosFijos)}</p>
           <ComprasTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
+          </>
         ) : currentModule === 'objetivos' ? (
           <ObjetivosTracker user={user || { id: 'demo-user', email: 'demo@finanzas.app', nombre: 'Richi' }} />
         ) : currentModule === 'gym' ? (
@@ -820,7 +840,7 @@ export default function App() {
                 <strong className="font-bold text-red-100 block sm:inline">
                   ¡Atención a tu Liquidez!
                 </strong>{' '}
-                Tu deuda de tarjetas ({formatCurrency(metricas.fondoBlindajeTdc)}) supera el dinero registrado en cuenta ({formatCurrency(metricas.saldoEfectivoDebito)}).
+                Revisa tus compromisos ({formatCurrency(metricas.fondoBlindajeTdc)}), reservas ({formatCurrency(totalReservado)}) y disponible ({formatCurrency(metricas.disponibleRealGastos)}): tu liquidez o uso de crédito está en riesgo.
                 <p className="text-[11px] text-red-300/90 mt-1">
                   Si tienes dinero en tu cuenta bancaria de débito o nómina para cubrir esto, regístralo para ver tu margen real disponible.
                 </p>
@@ -855,6 +875,7 @@ export default function App() {
 
         {/* 2. KPIS DE CABECERA: RESUMEN DE LIQUIDEZ Y CRÉDITO */}
         <section aria-label="Métricas Principales de Liquidez">
+          <div className="mb-4"><ReserveSummary total={saldoBaseEfectivo} protectedAmount={totalReservado} /></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* KPI 1: Dinero Actual Digital (lo que tengo al día de hoy) */}
             <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all flex flex-col justify-between">
@@ -903,7 +924,7 @@ export default function App() {
               <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 bg-slate-900/40 -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between text-[11px]">
                 <span className="text-slate-400">Resta deudas totales:</span>
                 <span className={`font-bold ${metricas.margenSeguroLibre >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatCurrency(metricas.saldoEfectivoDebito)} − {formatCurrency(metricas.fondoBlindajeTdc)} = {formatCurrency(metricas.margenSeguroLibre)}
+                  {formatCurrency(metricas.saldoEfectivoDebito)} − {formatCurrency(totalReservado)} reservas − {formatCurrency(metricas.fondoBlindajeTdc)} = {formatCurrency(metricas.margenSeguroLibre)}
                 </span>
               </div>
             </div>
@@ -1213,7 +1234,7 @@ export default function App() {
                     {formatCurrency(infoQuincena.saldoTotalProyectadoConQuincena)}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Dinero actual ({formatCurrency(metricas.saldoEfectivoDebito)}) + Sueldo − Deudas
+                    Disponible sin reservas ({formatCurrency(metricas.disponibleRealGastos)}) + Sueldo − Compromisos
                   </p>
                 </div>
               </div>
@@ -1234,7 +1255,7 @@ export default function App() {
                     Balance de Compromisos (Lo que resta por liquidar)
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Resta paso a paso contra tu Dinero Actual Digital ({formatCurrency(metricas.saldoEfectivoDebito)})
+                    Resta paso a paso contra tu disponible sin reservas ({formatCurrency(metricas.disponibleRealGastos)})
                   </p>
                 </div>
               </div>
@@ -1283,7 +1304,7 @@ export default function App() {
                 <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Te restaría en cuenta:</span>
                   <strong className="text-slate-200 font-bold">
-                    {formatCurrency(metricas.saldoEfectivoDebito - metricas.gastosFuturosPendientes)}
+                    {formatCurrency(metricas.margenDespuesDeGastosFijos)}
                   </strong>
                 </div>
               </div>

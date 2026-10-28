@@ -75,6 +75,8 @@ export interface ResumenTarjetaCalculado {
 }
 
 export interface MetricasFinancieras {
+  totalReservado: number;
+  disponibleRealGastos: number;
   saldoEfectivoDebito: number; // Dinero Actual Digital (lo que tienes hoy)
   lineaCreditoDisponible: number; // Suma de línea de crédito disponible en tarjetas
   fondoBlindajeTdc: number; // Deudas Totales (Saldo TDC + MSI)
@@ -414,5 +416,58 @@ export interface EstadoRiqueza {
   inyeccion_actual: number;
   dias_proximo_pago?: number;
   historial_cierres: CierrePeriodoRiqueza[];
+}
+
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE NOTAS & CARPETAS
+// ----------------------------------------------------
+export interface NoteFolder {
+  id: string;
+  user_id: string;
+  name: string;
+  color_hex: string;
+  icon: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Note {
+  id: string;
+  user_id: string;
+  folder_id: string | null;
+  title: string;
+  content: string;
+  tags: string[];
+  pinned: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ----------------------------------------------------
+// TIPOS PARA EL MÓDULO DE RESERVA & AHORROS (CAJITAS)
+// ----------------------------------------------------
+export type TipoMovimientoCajita = 'apartar' | 'liberar';
+
+export interface CajitaApartado {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_balance: number;
+  institution: string;
+  notes: string;
+  color_hex: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CajitaMovimiento {
+  id: string;
+  user_id: string;
+  apartado_id: string;
+  tipo: TipoMovimientoCajita;
+  monto: number;
+  nota: string;
+  created_at?: string;
 }
 

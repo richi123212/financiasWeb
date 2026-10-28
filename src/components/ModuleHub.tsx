@@ -20,6 +20,8 @@ interface ModuleHubProps {
   onSelectModule: (
     module:
       | 'finanzas'
+      | 'notas'
+      | 'cajitas'
       | 'riqueza'
       | 'gym'
       | 'tareas'
@@ -75,6 +77,7 @@ export const ModuleHub: React.FC<ModuleHubProps> = ({
 
         {/* Tarjetas de Selección: 8 módulos organizados en grid 4x2 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          {([{ id: 'notas', title: 'Notas & Carpetas', description: 'Ideas, etiquetas y notas destacadas' }, { id: 'cajitas', title: 'Reserva & Ahorros', description: 'Cajitas, metas y dinero protegido' }] as const).map(module => <button key={module.id} onClick={() => onSelectModule(module.id)} className="rounded-3xl bg-[#151D2E] border border-slate-800 hover:border-emerald-400 p-6 text-center space-y-4"><Wallet className="w-10 h-10 text-emerald-400 mx-auto" /><h3 className="text-lg font-black">{module.title}</h3><p className="text-xs text-slate-400">{module.description}</p><span className="block text-emerald-300">Entrar →</span></button>)}
           {/* Tarjeta 1: FINANZAS */}
           <div
             onClick={() => onSelectModule('finanzas')}

@@ -131,7 +131,8 @@ export function calcularMetricasGlobales(
   _transacciones: Transaccion[],
   inversiones: Inversion[],
   gastosFijos: GastoFuturoFijo[],
-  saldoInicialEfectivo: number = 0
+  saldoInicialEfectivo: number = 0,
+  totalReservado: number = 0
 ): MetricasFinancieras {
   // 1. Dinero Actual Digital declarado por el usuario (FIJO en cuenta bancaria hoy, no se descuenta)
   const balanceEfectivo = Number((Number(saldoInicialEfectivo) || 0).toFixed(2));
@@ -150,7 +151,8 @@ export function calcularMetricasGlobales(
 
   // 5. MARGEN SEGURO LIBRE:
   // Lo que realmente se puede gastar en ocio, gustos o extras sin caer en la trampa de la deuda.
-  const margenSeguroLibre = Number((balanceEfectivo - fondoBlindajeTdc).toFixed(2));
+  const disponibleRealGastos = Number((balanceEfectivo - totalReservado).toFixed(2));
+  const margenSeguroLibre = Number((disponibleRealGastos - fondoBlindajeTdc).toFixed(2));
 
   // 6. Inversiones y rendimientos
   const saldoInvertidoTotal = inversiones.reduce((acc, inv) => acc + (Number(inv.saldo) || 0), 0);
@@ -195,6 +197,8 @@ export function calcularMetricasGlobales(
 
   return {
     saldoEfectivoDebito: Number(balanceEfectivo.toFixed(2)),
+    totalReservado,
+    disponibleRealGastos,
     lineaCreditoDisponible,
     fondoBlindajeTdc,
     margenSeguroLibre,

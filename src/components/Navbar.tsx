@@ -26,6 +26,8 @@ interface NavbarProps {
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
   moduloActivo:
+    | 'notas'
+    | 'cajitas'
     | 'finanzas'
     | 'riqueza'
     | 'gym'
@@ -37,6 +39,8 @@ interface NavbarProps {
     | 'objetivos';
   onCambiarModulo: (
     modulo:
+      | 'notas'
+      | 'cajitas'
       | 'finanzas'
       | 'riqueza'
       | 'gym'
@@ -103,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold tracking-tight text-white font-['Plus_Jakarta_Sans']">
-                  {moduloActivo === 'finanzas' ? (
+                  {moduloActivo === 'notas' ? 'Notas & Carpetas' : moduloActivo === 'cajitas' ? 'Reserva & Ahorros' : moduloActivo === 'finanzas' ? (
                     <>
                       Finan<span className="text-emerald-400">zas</span>
                     </>
@@ -150,6 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Selector Central de Módulos con scroll suave */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar max-w-full">
+            {(['notas', 'cajitas'] as const).map(module => <button key={module} onClick={() => onCambiarModulo(module)} className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${moduloActivo === module ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'}`}>{module === 'notas' ? 'Notas' : 'Reserva & Ahorros'}</button>)}
             <button
               onClick={() => onCambiarModulo('finanzas')}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
