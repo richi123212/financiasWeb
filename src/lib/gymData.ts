@@ -591,8 +591,8 @@ export function obtenerEjerciciosParaRutina(
 
     const seriesCargar = ej.series.length > 0
       ? ej.series.map((s) => ({
-          peso: rec.accion === 'subir_peso' && rec.pesoSugerido > 0 ? rec.pesoSugerido : s.peso,
-          reps: rec.accion === 'subir_peso' && rec.repsSugeridas > 0 ? rec.repsSugeridas : s.reps,
+          peso: s.peso,
+          reps: s.reps,
           tipo: 'efectiva' as const,
         }))
       : [

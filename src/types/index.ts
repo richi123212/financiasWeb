@@ -127,6 +127,8 @@ export interface SerieEjercicio {
 }
 
 export interface EjercicioEntrenamiento {
+  modalidad?: 'ascendente' | 'constante' | 'inversa' | 'drop_set';
+  sensacion?: 'sin_datos' | 'controlada' | 'dudosa' | 'dolor';
   nombre: string;
   tipo_carga: TipoCarga;
   series: SerieEjercicio[];

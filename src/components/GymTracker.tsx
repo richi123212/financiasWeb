@@ -18,7 +18,6 @@ import {
   Volume2,
   VolumeX,
   CheckCheck,
-  TrendingUp,
 } from 'lucide-react';
 import type {
   GymEntrenamiento,
@@ -34,6 +33,9 @@ import {
   reproducirChimeFinDescanso,
   coincideRutina,
 } from '../lib/gymData';
+import { GymCoachPanel } from './GymCoachPanel';
+import { crearPlanGym } from '../lib/gymCoach';
+import type { ModalidadGym, SensacionGym } from '../lib/gymCoach';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // ----------------------------------------------------------------------
@@ -48,6 +50,8 @@ export interface EjercicioSesionActiva {
   omitido: boolean;  // ¿Omitido hoy? (Se mantienen sus marcas anteriores)
   marcaAnterior?: string;
   mostrarCalentamiento?: boolean;
+  modalidad?: ModalidadGym;
+  sensacion?: SensacionGym;
 }
 
 export interface SesionEnCurso {
@@ -140,6 +144,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     return null;
   });
 
+  const [ejercicioSeleccionado, setEjercicioSeleccionado] = useState<string | null>(null);
   const [isModoEntrenamientoOpen, setIsModoEntrenamientoOpen] = useState(false);
 
   // 3. TEMPORIZADOR DE DESCANSO
@@ -346,6 +351,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // INICIAR ENTRENAMIENTO (3 OPCIONES DIRECTAS Y LIBRES)
   // ----------------------------------------------------------------------
   const handleIniciarEntrenamiento = (rutinaId: string) => {
+    setEjercicioSeleccionado(null);
     // Si ya hay una sesión en curso de esta rutina, reanudarla directamente
     if (sesionEnCurso && sesionEnCurso.rutinaId === rutinaId) {
       setIsModoEntrenamientoOpen(true);
@@ -372,7 +378,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         id: `ej-${Date.now()}-${idx}`,
         nombre: ej.nombre,
         tipo_carga: ej.tipo_carga,
-        series: ej.series.map((s) => ({
+        modalidad: 'ascendente',
+        series: crearPlanGym('ascendente', Math.max(0, ...ej.series.map(s => s.peso)), ej.tipo_carga).map((s) => ({
           peso: s.peso,
           reps: s.reps,
           tipo: s.tipo || 'efectiva',
@@ -389,13 +396,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         {
           id: `ej-${Date.now()}-0`,
           nombre: '',
+          modalidad: 'ascendente',
           tipo_carga: 'kg',
-          series: [
-            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-            { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-          ],
+          series: crearPlanGym('ascendente', 10, 'kg').map(s => ({ ...s, completada: false })),
           guardado: false,
           omitido: false,
           mostrarCalentamiento: false,
@@ -406,7 +409,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     const nuevaSesion: SesionEnCurso = {
       rutinaId,
       rutinaNombre: nombreRutina,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: new Date().toLocaleDateString('en-CA'),
       notas: '',
       ejercicios: mapeados,
       descansoPorDefecto: 90,
@@ -430,16 +433,13 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   const handleAddEjercicio = () => {
     if (!sesionEnCurso) return;
     const nuevoId = `ej-${Date.now()}-${sesionEnCurso.ejercicios.length}`;
+    setEjercicioSeleccionado(nuevoId);
     const nuevoEj: EjercicioSesionActiva = {
       id: nuevoId,
       nombre: '',
+      modalidad: 'ascendente',
       tipo_carga: 'kg',
-      series: [
-        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-        { peso: 10, reps: 10, tipo: 'efectiva', completada: false },
-      ],
+      series: crearPlanGym('ascendente', 10, 'kg').map(s => ({ ...s, completada: false })),
       guardado: false,
       omitido: false,
       mostrarCalentamiento: false,
@@ -491,22 +491,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       return;
     }
 
-    setSesionEnCurso((prev) => {
-      if (!prev) return null;
-      const copy = { ...prev };
-      const e = copy.ejercicios[ejIndex];
-      e.guardado = true;
-      e.omitido = false;
-      e.series = e.series.map((s) => ({
-        ...s,
-        peso: typeof s.peso === 'number' ? s.peso : Number(s.peso) || 0,
-        reps: typeof s.reps === 'number' && s.reps > 0 ? s.reps : Number(s.reps) || 10,
-        completada: true,
-      }));
-      return copy;
-    });
-
-    startTimer(sesionEnCurso.descansoPorDefecto || 90);
+    if (!ej.series.some(s => s.completada && Number(s.reps) > 0)) {
+      alert('Marca primero las series que realmente completaste.');
+      return;
+    }
+    setSesionEnCurso(prev => prev ? { ...prev, ejercicios: prev.ejercicios.map((e, i) => i === ejIndex ? { ...e, guardado: true, omitido: false } : e) } : null);
   };
 
   const handleOmitirEjercicio = (ejIndex: number) => {
@@ -599,8 +588,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       }
 
       if (field === 'completada') {
+        if (val && (copy.ejercicios[ejIndex].sensacion === 'dolor' || !Number.isFinite(Number(s.peso)) || Number(s.peso) < 0 || !Number.isInteger(Number(s.reps)) || Number(s.reps) <= 0)) return prev;
         s.completada = Boolean(val);
-        if (s.completada) {
+        if (s.completada && (copy.ejercicios[ejIndex].modalidad !== 'drop_set' || serieIndex === copy.ejercicios[ejIndex].series.length - 1)) {
           startTimer(sesionEnCurso.descansoPorDefecto || 90);
         }
       }
@@ -640,27 +630,6 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     });
   };
 
-  const handleAplicarSugerenciaSobrecarga = (
-    ejIndex: number,
-    pesoSugerido: number,
-    repsSugeridas: number
-  ) => {
-    if (!sesionEnCurso) return;
-    setSesionEnCurso((prev) => {
-      if (!prev) return null;
-      const copy = { ...prev };
-      const ej = copy.ejercicios[ejIndex];
-      ej.series = ej.series.map((s) => {
-        if (s.tipo === 'calentamiento') return s;
-        return {
-          ...s,
-          peso: pesoSugerido,
-          reps: repsSugeridas,
-        };
-      });
-      return copy;
-    });
-  };
 
   const handleAddSerie = (ejIndex: number) => {
     if (!sesionEnCurso) return;
@@ -700,7 +669,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
     // Cualquier ejercicio que tenga nombre y no haya sido omitido se considera realizado
     const ejerciciosRealizados = sesionEnCurso.ejercicios.filter(
-      (e) => !e.omitido && e.nombre.trim() !== '' && e.series && e.series.length > 0
+      (e) => !e.omitido && e.nombre.trim() !== '' && e.series.some(s => s.completada && Number(s.reps) > 0)
     );
 
     const ejerciciosOmitidos = sesionEnCurso.ejercicios.filter(
@@ -709,7 +678,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
     if (ejerciciosRealizados.length === 0) {
       alert(
-        'Escribe el nombre de al menos un ejercicio y sus repeticiones para guardar tu entrenamiento.'
+        'Marca las series que realmente completaste antes de guardar el entrenamiento.'
       );
       return;
     }
@@ -731,7 +700,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       ejercicios: ejerciciosRealizados.map((e) => ({
         nombre: e.nombre.trim(),
         tipo_carga: e.tipo_carga,
-        series: e.series.map((s) => ({
+        ...(e.modalidad ? { modalidad: e.modalidad } : {}),
+        sensacion: e.sensacion || 'sin_datos',
+        series: e.series.filter(s => s.completada && Number(s.reps) > 0).map((s) => ({
           peso: typeof s.peso === 'number' ? s.peso : Number(s.peso) || 0,
           reps: typeof s.reps === 'number' && s.reps > 0 ? s.reps : Number(s.reps) || 10,
           tipo: s.tipo || 'efectiva',
@@ -974,6 +945,8 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             return (
               <div
                 key={r.id}
+                role="button" tabIndex={0} aria-label={r.nombre}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleIniciarEntrenamiento(r.id); } }}
                 onClick={() => handleIniciarEntrenamiento(r.id)}
                 className="p-5 rounded-2xl bg-[#161F30] border border-slate-800 hover:border-indigo-500/60 shadow-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer group flex flex-col justify-between"
               >
@@ -1034,24 +1007,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                                   </span>
                                 )}
 
-                                {rec.accion === 'subir_peso' ? (
-                                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 flex items-center gap-0.5 animate-pulse">
-                                    <Sparkles className="w-2.5 h-2.5 text-amber-300" />
-                                    <span>Sube a {rec.pesoSugerido}{rec.unidad}</span>
-                                  </span>
-                                ) : rec.tieneHistorial ? (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                    {rec.siguienteMeta}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-500 text-[10px] font-semibold">
-                                    {ej.tipo_carga === 'barras'
-                                      ? 'Barras'
-                                      : ej.tipo_carga === 'kg'
-                                      ? 'Kg'
-                                      : 'Corp.'}
-                                  </span>
-                                )}
+                                <span className="text-indigo-300 text-[10px]">Preparar plan</span>
                               </div>
                             </div>
                           );
@@ -1155,7 +1111,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                         className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-1.5"
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <strong className="text-slate-100 font-bold">{ej.nombre}</strong>
+                          <strong className="text-slate-100 font-bold">{ej.nombre}{ej.modalidad && <span className="block text-indigo-300 text-[10px] font-normal">{ej.modalidad === 'inversa' ? 'Pirámide inversa' : ej.modalidad === 'drop_set' ? 'Drop set' : ej.modalidad === 'ascendente' ? 'Ascendente' : 'Constante'}</span>}</strong>
                           <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700">
                             {ej.tipo_carga === 'barras'
                               ? 'Barras'
@@ -1385,6 +1341,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               <span className="text-indigo-400 font-bold text-xs">{progresoSesion.porcentaje}%</span>
             </div>
 
+            <div className="px-4 py-3 border-b border-slate-700 bg-slate-900">
+              <p className="text-sm font-bold text-white mb-2">Elige un ejercicio para entrenar</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">{sesionEnCurso.ejercicios.map((ej, i) => <button type="button" key={ej.id} aria-pressed={ejercicioSeleccionado === ej.id} onClick={() => setEjercicioSeleccionado(ej.id)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs ${ejercicioSeleccionado === ej.id ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-slate-700 text-slate-300'}`}>{ej.guardado ? '✓ ' : ''}{ej.nombre || `Nuevo ejercicio ${i + 1}`}</button>)}</div>
+              {!ejercicioSeleccionado && <p className="text-xs text-slate-400">Tu historial se conserva. Abre un ejercicio para preparar sus series.</p>}
+            </div>
             {/* Lista de Ejercicios en Modo Entrenamiento */}
             <div className="p-3 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
               {sesionEnCurso.ejercicios.length === 0 ? (
@@ -1406,6 +1367,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                 </div>
               ) : (
                 sesionEnCurso.ejercicios.map((ej, ejIdx) => {
+                  if (ej.id !== ejercicioSeleccionado) return null;
                   const efectivas = ej.series.filter((s) => s.tipo !== 'calentamiento');
                   const maxPesoEfectivo =
                     efectivas.length > 0
@@ -1471,75 +1433,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                           </div>
                         </div>
 
-                        {/* Panel de Sobrecarga Progresiva y Sugerencia de Aumento de Peso */}
-                        {(() => {
-                          const rec = calcularRecomendacionSobrecarga(
-                            ej.nombre,
-                            ej.tipo_carga,
-                            entrenamientos,
-                            ej.series
-                          );
-
-                          return (
-                            <div className="pt-1 space-y-1.5">
-                              {rec.tieneHistorial ? (
-                                <div
-                                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs ${
-                                    rec.accion === 'subir_peso'
-                                      ? 'bg-gradient-to-r from-emerald-950/60 via-[#132822] to-slate-900 border-emerald-500/60 shadow-md shadow-emerald-500/10'
-                                      : 'bg-slate-800/80 border-slate-700/70'
-                                  }`}
-                                >
-                                  <div className="space-y-1 flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">
-                                        Última vez: {rec.resumenUltimo}
-                                      </span>
-
-                                      {rec.accion === 'subir_peso' ? (
-                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 animate-pulse">
-                                          <Sparkles className="w-3 h-3 text-amber-300" />
-                                          <span>¡Sugerencia: Súbele a {rec.pesoSugerido}{rec.unidad}!</span>
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                          Meta: {rec.siguienteMeta}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <p className="text-xs text-slate-200 font-medium leading-relaxed">
-                                      {rec.recomendacionTexto}
-                                    </p>
-                                  </div>
-
-                                  {/* Botón rápido para aplicar el aumento sugerido de peso */}
-                                  {rec.accion === 'subir_peso' && rec.pesoSugerido > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleAplicarSugerenciaSobrecarga(
-                                          ejIdx,
-                                          rec.pesoSugerido,
-                                          rec.repsSugeridas
-                                        )
-                                      }
-                                      className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-95 text-white font-black text-xs shadow-md shadow-emerald-600/30 transition-all cursor-pointer flex-shrink-0 w-full sm:w-auto"
-                                      title={`Poner ${rec.pesoSugerido}${rec.unidad} en tus series efectivas de hoy`}
-                                    >
-                                      <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
-                                      <span>Subir a {rec.pesoSugerido}{rec.unidad}</span>
-                                    </button>
-                                  )}
-                                </div>
-                              ) : ej.nombre.trim() !== '' ? (
-                                <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/50 text-[11px] text-slate-400">
-                                  Primer registro para este ejercicio. Anota tus series hoy y en la siguiente sesión la app te sugerirá exactamente cuándo aumentarle peso o repeticiones.
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })()}
+                        <GymCoachPanel nombre={ej.nombre} tipo={ej.tipo_carga} historial={entrenamientos}
+                          modalidad={ej.modalidad} sensacion={ej.sensacion} series={ej.series}
+                          onChange={(modalidad, sensacion, series) => setSesionEnCurso(prev => prev ? ({ ...prev,
+                            ejercicios: prev.ejercicios.map((item, i) => i === ejIdx ? { ...item, modalidad, sensacion,
+                              ...(series ? { series: series.map(s => ({ ...s, completada: false })), guardado: false } : {}) } : item)
+                          }) : null)} />
 
                         {/* Botones de Acción del Ejercicio */}
                         <div className="flex items-center gap-2 pt-1 flex-wrap justify-between sm:justify-end">
