@@ -127,6 +127,7 @@ export interface SerieEjercicio {
 }
 
 export interface EjercicioEntrenamiento {
+  enfoque?: 'progresion' | 'tecnica';
   modalidad?: 'ascendente' | 'constante' | 'inversa' | 'drop_set';
   sensacion?: 'sin_datos' | 'controlada' | 'dudosa' | 'dolor';
   nombre: string;

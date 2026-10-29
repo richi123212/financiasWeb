@@ -34,8 +34,8 @@ import {
   coincideRutina,
 } from '../lib/gymData';
 import { GymCoachPanel } from './GymCoachPanel';
-import { crearPlanGym } from '../lib/gymCoach';
-import type { ModalidadGym, SensacionGym } from '../lib/gymCoach';
+import { cargaReferenciaGym, crearPlanGym } from '../lib/gymCoach';
+import type { EnfoqueGym, ModalidadGym, SensacionGym } from '../lib/gymCoach';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // ----------------------------------------------------------------------
@@ -50,11 +50,14 @@ export interface EjercicioSesionActiva {
   omitido: boolean;  // ¿Omitido hoy? (Se mantienen sus marcas anteriores)
   marcaAnterior?: string;
   mostrarCalentamiento?: boolean;
+  enfoque?: EnfoqueGym;
+  cargaReferencia?: number;
   modalidad?: ModalidadGym;
   sensacion?: SensacionGym;
 }
 
 export interface SesionEnCurso {
+  enfoque?: EnfoqueGym;
   rutinaId: string; // 'pecho' | 'espalda' | 'pierna'
   rutinaNombre: string;
   fecha: string;
@@ -379,7 +382,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         nombre: ej.nombre,
         tipo_carga: ej.tipo_carga,
         modalidad: 'ascendente',
-        series: crearPlanGym('ascendente', Math.max(0, ...ej.series.map(s => s.peso)), ej.tipo_carga).map((s) => ({
+        enfoque: 'progresion',
+        cargaReferencia: cargaReferenciaGym(ej.nombre, ej.tipo_carga, entrenamientos, Math.max(0, ...ej.series.map(s => s.peso))),
+        series: crearPlanGym('ascendente', cargaReferenciaGym(ej.nombre, ej.tipo_carga, entrenamientos, Math.max(0, ...ej.series.map(s => s.peso))), ej.tipo_carga).map((s) => ({
           peso: s.peso,
           reps: s.reps,
           tipo: s.tipo || 'efectiva',
@@ -408,6 +413,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
     const nuevaSesion: SesionEnCurso = {
       rutinaId,
+      enfoque: 'progresion',
       rutinaNombre: nombreRutina,
       fecha: new Date().toLocaleDateString('en-CA'),
       notas: '',
@@ -430,6 +436,18 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // ----------------------------------------------------------------------
   // MANIPULACIÓN DE EJERCICIOS Y SERIES EN MODO ENTRENAMIENTO
   // ----------------------------------------------------------------------
+  const handleCambiarEnfoque = (enfoque: EnfoqueGym) => {
+    setSesionEnCurso(prev => prev ? { ...prev, enfoque,
+      ejercicios: prev.ejercicios.map(e => {
+        if (e.series.some(s => s.completada) || e.guardado) return e;
+        const cargaReferencia = e.cargaReferencia ?? cargaReferenciaGym(e.nombre, e.tipo_carga, entrenamientos, Math.max(0, ...e.series.filter(s => s.tipo !== 'calentamiento').map(s => Number(s.peso) || 0)));
+        const modalidad = enfoque === 'tecnica' ? 'constante' : e.tipo_carga === 'peso_corporal' ? 'constante' : 'ascendente';
+        return { ...e, enfoque, cargaReferencia, modalidad,
+          series: [...e.series.filter(s => s.tipo === 'calentamiento'), ...crearPlanGym(modalidad, cargaReferencia, e.tipo_carga, enfoque).map(s => ({ ...s, completada: false }))] };
+      })
+    } : null);
+  };
+
   const handleAddEjercicio = () => {
     if (!sesionEnCurso) return;
     const nuevoId = `ej-${Date.now()}-${sesionEnCurso.ejercicios.length}`;
@@ -437,9 +455,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     const nuevoEj: EjercicioSesionActiva = {
       id: nuevoId,
       nombre: '',
-      modalidad: 'ascendente',
+      modalidad: sesionEnCurso.enfoque === 'tecnica' ? 'constante' : 'ascendente',
+      enfoque: sesionEnCurso.enfoque || 'progresion',
+      cargaReferencia: 10,
       tipo_carga: 'kg',
-      series: crearPlanGym('ascendente', 10, 'kg').map(s => ({ ...s, completada: false })),
+      series: crearPlanGym(sesionEnCurso.enfoque === 'tecnica' ? 'constante' : 'ascendente', 10, 'kg', sesionEnCurso.enfoque).map(s => ({ ...s, completada: false })),
       guardado: false,
       omitido: false,
       mostrarCalentamiento: false,
@@ -459,6 +479,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (!prev) return null;
       const copy = { ...prev };
       copy.ejercicios[ejIndex].nombre = nombre;
+      copy.ejercicios[ejIndex].cargaReferencia = undefined;
       return copy;
     });
   };
@@ -469,6 +490,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (!prev) return null;
       const copy = { ...prev };
       copy.ejercicios[ejIndex].tipo_carga = tipo_carga;
+      copy.ejercicios[ejIndex].cargaReferencia = undefined;
       return copy;
     });
   };
@@ -702,6 +724,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
         tipo_carga: e.tipo_carga,
         ...(e.modalidad ? { modalidad: e.modalidad } : {}),
         sensacion: e.sensacion || 'sin_datos',
+        enfoque: e.enfoque || 'progresion',
         series: e.series.filter(s => s.completada && Number(s.reps) > 0).map((s) => ({
           peso: typeof s.peso === 'number' ? s.peso : Number(s.peso) || 0,
           reps: typeof s.reps === 'number' && s.reps > 0 ? s.reps : Number(s.reps) || 10,
@@ -1111,7 +1134,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                         className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-1.5"
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <strong className="text-slate-100 font-bold">{ej.nombre}{ej.modalidad && <span className="block text-indigo-300 text-[10px] font-normal">{ej.modalidad === 'inversa' ? 'Pirámide inversa' : ej.modalidad === 'drop_set' ? 'Drop set' : ej.modalidad === 'ascendente' ? 'Ascendente' : 'Constante'}</span>}</strong>
+                          <strong className="text-slate-100 font-bold">{ej.nombre}{ej.enfoque === 'tecnica' && <span className="block text-teal-300 text-[10px] font-normal">Técnica / ligero</span>}{ej.modalidad && <span className="block text-indigo-300 text-[10px] font-normal">{ej.modalidad === 'inversa' ? 'Pirámide inversa' : ej.modalidad === 'drop_set' ? 'Drop set' : ej.modalidad === 'ascendente' ? 'Ascendente' : 'Constante'}</span>}</strong>
                           <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700">
                             {ej.tipo_carga === 'barras'
                               ? 'Barras'
@@ -1342,6 +1365,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             </div>
 
             <div className="px-4 py-3 border-b border-slate-700 bg-slate-900">
+              <div className="grid grid-cols-2 gap-2 mb-2" aria-label="Enfoque del entrenamiento">
+                <button type="button" aria-pressed={(sesionEnCurso.enfoque || 'progresion') === 'progresion'} onClick={() => handleCambiarEnfoque('progresion')} className={`rounded-xl border p-2 text-left text-xs ${(sesionEnCurso.enfoque || 'progresion') === 'progresion' ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-slate-700 text-slate-400'}`}><strong className="block">Progresión</strong>Tu día de trabajo habitual</button>
+                <button type="button" aria-pressed={sesionEnCurso.enfoque === 'tecnica'} onClick={() => handleCambiarEnfoque('tecnica')} className={`rounded-xl border p-2 text-left text-xs ${sesionEnCurso.enfoque === 'tecnica' ? 'border-teal-400 bg-teal-500/20 text-white' : 'border-slate-700 text-slate-400'}`}><strong className="block">Técnica / ligero</strong>Menos carga y más margen</button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2">El enfoque prepara los ejercicios sin series completadas. Los que ya empezaste conservan su plan.</p>
               <p className="text-sm font-bold text-white mb-2">Elige un ejercicio para entrenar</p>
               <div className="flex gap-2 overflow-x-auto pb-2">{sesionEnCurso.ejercicios.map((ej, i) => <button type="button" key={ej.id} aria-pressed={ejercicioSeleccionado === ej.id} onClick={() => setEjercicioSeleccionado(ej.id)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs ${ejercicioSeleccionado === ej.id ? 'border-indigo-400 bg-indigo-500/20 text-white' : 'border-slate-700 text-slate-300'}`}>{ej.guardado ? '✓ ' : ''}{ej.nombre || `Nuevo ejercicio ${i + 1}`}</button>)}</div>
               {!ejercicioSeleccionado && <p className="text-xs text-slate-400">Tu historial se conserva. Abre un ejercicio para preparar sus series.</p>}
@@ -1434,10 +1462,10 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
                         </div>
 
                         <GymCoachPanel nombre={ej.nombre} tipo={ej.tipo_carga} historial={entrenamientos}
-                          modalidad={ej.modalidad} sensacion={ej.sensacion} series={ej.series}
+                          modalidad={ej.modalidad} sensacion={ej.sensacion} series={ej.series} enfoque={ej.enfoque} cargaReferencia={ej.cargaReferencia}
                           onChange={(modalidad, sensacion, series) => setSesionEnCurso(prev => prev ? ({ ...prev,
                             ejercicios: prev.ejercicios.map((item, i) => i === ejIdx ? { ...item, modalidad, sensacion,
-                              ...(series ? { series: series.map(s => ({ ...s, completada: false })), guardado: false } : {}) } : item)
+                              ...(series ? { series: [...item.series.filter(s => s.tipo === 'calentamiento'), ...series.map(s => ({ ...s, completada: false }))], guardado: false } : {}) } : item)
                           }) : null)} />
 
                         {/* Botones de Acción del Ejercicio */}
