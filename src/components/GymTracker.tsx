@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dumbbell,
   Plus,
@@ -26,7 +26,6 @@ import type {
   UserProfile,
 } from '../types';
 import {
-  INITIAL_GYM_WORKOUTS,
   obtenerSugerenciaCalentamiento,
   obtenerEjerciciosParaRutina,
   calcularRecomendacionSobrecarga,
@@ -36,7 +35,7 @@ import {
 import { GymCoachPanel } from './GymCoachPanel';
 import { cargaReferenciaGym, crearPlanGym } from '../lib/gymCoach';
 import type { EnfoqueGym, ModalidadGym, SensacionGym } from '../lib/gymCoach';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useGymOffline } from '../hooks/useGymOffline';
 
 // ----------------------------------------------------------------------
 // INTERFACES PARA EL MODO ENTRENAMIENTO EN VIVO
@@ -57,6 +56,7 @@ export interface EjercicioSesionActiva {
 }
 
 export interface SesionEnCurso {
+  recordId?: string;
   enfoque?: EnfoqueGym;
   rutinaId: string; // 'pecho' | 'espalda' | 'pierna'
   rutinaNombre: string;
@@ -111,25 +111,10 @@ function formatearFechaRelativa(fechaStr: string): string {
 }
 
 export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
-  // 1. HISTORIAL DE ENTRENAMIENTOS (Carga síncrona inicial de LocalStorage para proteger datos existentes)
-  const [entrenamientos, setEntrenamientos] = useState<GymEntrenamiento[]>(() => {
-    try {
-      const localData = localStorage.getItem(`finanzshield_gym_${user.id}`);
-      if (localData) {
-        const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed)) {
-          const valid = parsed.filter((item: any) => !String(item.id).startsWith('seed-'));
-          if (valid.length > 0) return valid;
-        }
-      }
-    } catch (e) {
-      console.error('Error parseando historial de gym local:', e);
-    }
-    return INITIAL_GYM_WORKOUTS;
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+  const gym = useGymOffline(user.id);
+  const { entrenamientos } = gym;
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   // 2. SESIÓN EN CURSO (MODO ENTRENAMIENTO ACTIVO)
   const [sesionEnCurso, setSesionEnCurso] = useState<SesionEnCurso | null>(() => {
@@ -159,108 +144,10 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // 4. MODAL DE FINALIZACIÓN EXITOSA
   const [resumenFinalizado, setResumenFinalizado] = useState<{
     rutinaTerminada: string;
+    recordId: string;
     ejerciciosGuardados: number;
     ejerciciosOmitidos: number;
   } | null>(null);
-
-  // 5. Cargar entrenamientos desde Supabase y fusionar con registros locales
-  useEffect(() => {
-    const fetchGymData = async () => {
-      try {
-        let localEntrenamientos: GymEntrenamiento[] = [];
-        const localData = localStorage.getItem(`finanzshield_gym_${user.id}`);
-        if (localData) {
-          try {
-            const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed)) {
-              localEntrenamientos = parsed.filter(
-                (item: any) => !String(item.id).startsWith('seed-')
-              );
-            }
-          } catch (e) {
-            console.error('Error parseando gym local:', e);
-          }
-        }
-
-        if (isSupabaseConfigured && user.id !== 'demo-user') {
-          const { data, error } = await supabase
-            .from('gym_entrenamientos')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-          if (!error && data) {
-            const mapped: GymEntrenamiento[] = data.map((row: any) => ({
-              id: row.id,
-              user_id: row.user_id,
-              rutina_nombre: row.rutina_nombre,
-              fecha: row.fecha,
-              notas: row.notas,
-              ejercicios: Array.isArray(row.ejercicios) ? row.ejercicios : [],
-              created_at: row.created_at,
-            }));
-
-            // FUSIONAR: preservar cualquier registro local que aún no esté en Supabase
-            const idsEnSupabase = new Set(mapped.map((m) => m.id));
-            const soloLocales = localEntrenamientos.filter((l) => !idsEnSupabase.has(l.id));
-
-            for (const itemLocal of soloLocales) {
-              try {
-                const { data: supaInsert } = await supabase
-                  .from('gym_entrenamientos')
-                  .insert([
-                    {
-                      user_id: user.id,
-                      rutina_nombre: itemLocal.rutina_nombre,
-                      fecha: itemLocal.fecha,
-                      notas: itemLocal.notas || '',
-                      ejercicios: itemLocal.ejercicios,
-                    },
-                  ])
-                  .select()
-                  .single();
-
-                if (supaInsert) {
-                  itemLocal.id = supaInsert.id;
-                }
-              } catch (syncErr) {
-                // Conservar id local si falla la red
-              }
-            }
-
-            const todos = [...mapped, ...soloLocales].sort((a, b) => {
-              const timeA = new Date(a.created_at || a.fecha).getTime();
-              const timeB = new Date(b.created_at || b.fecha).getTime();
-              return timeB - timeA;
-            });
-
-            setEntrenamientos(todos);
-            setHasLoadedInitial(true);
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        if (localEntrenamientos.length > 0) {
-          setEntrenamientos(localEntrenamientos);
-        }
-        setHasLoadedInitial(true);
-      } catch (err) {
-        console.error('Error cargando entrenamientos:', err);
-        setHasLoadedInitial(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchGymData();
-  }, [user.id]);
-
-  // Guardar en LocalStorage cada vez que cambien los entrenamientos
-  useEffect(() => {
-    if (!hasLoadedInitial) return;
-    localStorage.setItem(`finanzshield_gym_${user.id}`, JSON.stringify(entrenamientos));
-  }, [entrenamientos, user.id, hasLoadedInitial]);
 
   // Guardar en LocalStorage la sesión en curso en tiempo real
   useEffect(() => {
@@ -412,6 +299,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
     }
 
     const nuevaSesion: SesionEnCurso = {
+      recordId: crypto.randomUUID(),
       rutinaId,
       enfoque: 'progresion',
       rutinaNombre: nombreRutina,
@@ -427,6 +315,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   };
 
   const handleDescartarSesionActiva = () => {
+    if (savingRef.current) return;
     if (!confirm('¿Estás seguro de que deseas descartar este entrenamiento en curso?')) return;
     setSesionEnCurso(null);
     setIsModoEntrenamientoOpen(false);
@@ -687,7 +576,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
   // FINALIZAR ENTRENAMIENTO COMPLETO
   // ----------------------------------------------------------------------
   const handleFinalizarEntrenamiento = async () => {
-    if (!sesionEnCurso) return;
+    if (!sesionEnCurso || savingRef.current) return;
 
     // Cualquier ejercicio que tenga nombre y no haya sido omitido se considera realizado
     const ejerciciosRealizados = sesionEnCurso.ejercicios.filter(
@@ -714,7 +603,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       if (!confirmacion) return;
     }
 
-    const nuevoRegistro: Omit<GymEntrenamiento, 'id'> = {
+    const recordId = sesionEnCurso.recordId || crypto.randomUUID();
+    if (!sesionEnCurso.recordId) setSesionEnCurso(prev => prev ? { ...prev, recordId } : prev);
+    const nuevoRegistro: GymEntrenamiento = {
+      id: recordId,
+      created_at: new Date().toISOString(),
       user_id: user.id,
       rutina_nombre: sesionEnCurso.rutinaNombre,
       fecha: sesionEnCurso.fecha,
@@ -733,37 +626,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       })),
     };
 
+    savingRef.current = true;
+    setSaving(true);
     try {
-      let savedItem: GymEntrenamiento | null = null;
-
-      if (isSupabaseConfigured && user.id !== 'demo-user') {
-        try {
-          const { data, error } = await supabase
-            .from('gym_entrenamientos')
-            .insert([nuevoRegistro])
-            .select()
-            .single();
-
-          if (!error && data) {
-            savedItem = data as GymEntrenamiento;
-          } else if (error) {
-            console.warn('Aviso: error insertando en Supabase, guardando en respaldo local:', error);
-          }
-        } catch (supaErr) {
-          console.warn('Aviso: error de red con Supabase, respaldando localmente:', supaErr);
-        }
-      }
-
-      if (!savedItem) {
-        savedItem = {
-          ...nuevoRegistro,
-          id: `local-${Date.now()}`,
-          created_at: new Date().toISOString(),
-        };
-      }
-
-      // 1. Agregar a la lista de entrenamientos (más reciente primero)
-      setEntrenamientos((prev) => [savedItem!, ...prev.filter((p) => p.id !== savedItem!.id)]);
+      // Keep the same ID even if the app closes between local commit and clearing the draft.
+      localStorage.setItem(`finanzshield_gym_active_session_${user.id}`, JSON.stringify({ ...sesionEnCurso, recordId }));
+      await gym.save(nuevoRegistro);
 
       // 2. Limpiar sesión activa
       setSesionEnCurso(null);
@@ -774,25 +642,20 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
       // 3. Mostrar confirmación de finalización exitosa (completamente libre lo que haga después)
       setResumenFinalizado({
         rutinaTerminada: sesionEnCurso.rutinaNombre,
+        recordId,
         ejerciciosGuardados: ejerciciosRealizados.length,
         ejerciciosOmitidos: ejerciciosOmitidos.length,
       });
     } catch (err: any) {
       console.error('Error finalizando entrenamiento:', err);
-      alert('Error al guardar entrenamiento: ' + err.message);
-    }
+      alert('No se pudo guardar en este dispositivo. Tu sesión sigue abierta. ' + err.message);
+    } finally { savingRef.current = false; setSaving(false); }
   };
 
   const handleDeleteEntrenamiento = async (id: string) => {
     if (!confirm('¿Deseas eliminar este registro de entrenamiento?')) return;
-    try {
-      if (isSupabaseConfigured && user.id !== 'demo-user' && !id.startsWith('local-')) {
-        await supabase.from('gym_entrenamientos').delete().eq('id', id);
-      }
-      setEntrenamientos((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      console.error('Error eliminando entrenamiento:', err);
-    }
+    try { await gym.remove(id); }
+    catch { alert('No se pudo guardar la eliminación. El registro se conserva.'); }
   };
 
   const progresoSesion = useMemo(() => {
@@ -808,6 +671,11 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
   return (
     <div className="space-y-6">
+      {(gym.error || gym.pending.length > 0 || !gym.online) && <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-2" role="status">
+        <p>{gym.error || (gym.pending.length ? `${gym.pending.length} cambio(s) guardados en este dispositivo, pendientes de respaldo.` : 'Puedes entrenar sin conexión con el historial descargado.')}</p>
+        <p className="text-xs text-amber-200/80">Se sincroniza al recuperar internet y abrir o mantener abierta la app. Los borradores en curso permanecen en este dispositivo.</p>
+        {gym.online && <button type="button" disabled={gym.syncing} onClick={() => void gym.sync()} className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold disabled:opacity-50">{gym.syncing ? 'Sincronizando…' : 'Reintentar sincronización'}</button>}
+      </div>}
       {/* ====================================================================== */}
       {/* 1. CABECERA PRINCIPAL */}
       {/* ====================================================================== */}
@@ -823,20 +691,9 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               {entrenamientos.length} Sesiones Registradas
             </span>
-            {isLoading ? (
-              <span className="text-[10px] text-indigo-400 font-semibold animate-pulse">
-                Sincronizando con Supabase...
-              </span>
-            ) : isSupabaseConfigured && user.id !== 'demo-user' ? (
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Supabase Conectado</span>
-              </span>
-            ) : (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                Almacenamiento Local
-              </span>
-            )}
+            <span className="text-[10px] font-bold px-2 py-1 rounded-full border border-slate-600 text-slate-200" role="status">
+              {gym.loading ? 'Abriendo historial local…' : gym.syncing ? 'Sincronizando…' : gym.pending.length ? `${gym.pending.length} pendientes de sincronizar` : !gym.online ? 'Sin conexión · datos locales' : user.id === 'demo-user' ? 'Solo en este dispositivo' : gym.lastSync ? 'Historial sincronizado' : 'Historial local'}
+            </span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
@@ -1825,11 +1682,12 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
 
                 <button
                   type="button"
+                  disabled={saving || gym.loading}
                   onClick={handleFinalizarEntrenamiento}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 active:scale-98 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
                 >
                   <CheckCheck className="w-4 h-4 stroke-[2.5]" />
-                  <span>Finalizar Todo el Entrenamiento</span>
+                  <span>{saving ? 'Guardando en el dispositivo…' : 'Finalizar Todo el Entrenamiento'}</span>
                 </button>
               </div>
             </div>
@@ -1851,7 +1709,7 @@ export const GymTracker: React.FC<GymTrackerProps> = ({ user }) => {
               <h3 className="text-xl font-black text-white">¡Entrenamiento Guardado con Éxito!</h3>
               <p className="text-xs text-slate-300">
                 Se registraron <strong>{resumenFinalizado.ejerciciosGuardados} ejercicios</strong> de{' '}
-                {resumenFinalizado.rutinaTerminada} en tu historial y base de datos.
+                {resumenFinalizado.rutinaTerminada} en tu historial local. {gym.pending.some(op => op.id === resumenFinalizado.recordId) ? 'Pendiente de sincronizar con tu cuenta.' : user.id === 'demo-user' ? 'Disponible en este dispositivo.' : 'Sincronizado con tu cuenta.'}
               </p>
               {resumenFinalizado.ejerciciosOmitidos > 0 && (
                 <p className="text-[11px] text-slate-400">

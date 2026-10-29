@@ -16,7 +16,8 @@ import {
   Edit3,
   CheckCircle,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { useOnline } from './hooks/useOnline';
+import { supabase, isSupabaseConfigured, readOfflineUser } from './lib/supabase';
 import type {
   Tarjeta,
   CompraMSI,
@@ -71,6 +72,7 @@ import type { CajitaApartado } from './types';
 const STORAGE_KEY = 'finanzshield_local_state_v1';
 
 export default function App() {
+  const online = useOnline();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
@@ -118,6 +120,11 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        const rememberedUser = readOfflineUser();
+        if (rememberedUser) {
+          setUser(rememberedUser); setIsDemoMode(false); setIsLoadingAuth(false);
+          if (!navigator.onLine) return;
+        }
         if (isSupabaseConfigured) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
@@ -127,8 +134,8 @@ export default function App() {
               nombre: session.user.user_metadata?.nombre || session.user.email?.split('@')[0],
             });
             setIsDemoMode(false);
-            await fetchSupabaseData(session.user.id);
             setIsLoadingAuth(false);
+            if (navigator.onLine) void fetchSupabaseData(session.user.id);
             return;
           }
         }
@@ -160,7 +167,7 @@ export default function App() {
 
     // Listener para cambios de sesión de Supabase
     if (isSupabaseConfigured) {
-      const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           setUser({
             id: session.user.id,
@@ -168,7 +175,7 @@ export default function App() {
             nombre: session.user.user_metadata?.nombre || session.user.email?.split('@')[0],
           });
           setIsDemoMode(false);
-          await fetchSupabaseData(session.user.id);
+          if (navigator.onLine) setTimeout(() => void fetchSupabaseData(session.user.id), 0);
         } else {
           setUser(null);
         }
@@ -722,7 +729,7 @@ export default function App() {
 
   const handleLogout = async () => {
     if (!isDemoMode && isSupabaseConfigured) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     }
     setUser(null);
     setIsDemoMode(false);
@@ -756,6 +763,10 @@ export default function App() {
         }}
       />
     );
+  }
+
+  if (!online && currentModule !== 'hub' && currentModule !== 'gym') {
+    return <main className="min-h-screen bg-[#0B0F19] text-white flex items-center justify-center p-6"><div className="max-w-md rounded-3xl border border-slate-700 p-6 space-y-4"><h1 className="text-xl font-bold">Esta sección necesita conexión</h1><p className="text-sm text-slate-300">El gimnasio está disponible sin internet con los datos guardados en este dispositivo. Reconecta para consultar y modificar los demás módulos.</p><button className="bg-indigo-600 rounded-xl p-3 font-bold" onClick={() => setCurrentModule('gym')}>Abrir gimnasio</button><button className="block text-slate-300" onClick={() => setCurrentModule('hub')}>Volver al inicio</button></div></main>;
   }
 
   // Si está en el Hub de Módulos (selector de bienvenida al iniciar sesión)

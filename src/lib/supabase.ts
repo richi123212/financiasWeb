@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { UserProfile } from '../types';
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
@@ -24,3 +25,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
   },
 });
+
+// Offline access only restores the user already signed in on this device.
+// Server permissions remain governed by Supabase Auth and RLS when reconnecting.
+export function readOfflineUser(): UserProfile | null {
+  try {
+    const key = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+    const session = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!session?.access_token || !session.user?.id) return null;
+    return { id: session.user.id, email: session.user.email || '', nombre: session.user.user_metadata?.nombre || session.user.email?.split('@')[0] };
+  } catch { return null; }
+}

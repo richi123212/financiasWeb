@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Mi Portal Personal",
+  "short_name": "Mi Portal",
+  "description": "Finanzas y bitácora de entrenamiento personal. Gimnasio disponible sin conexión.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B0F19",
+  "theme_color": "#0B0F19",
+  "icons": [
+    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
