@@ -54,6 +54,8 @@ import { CardsManagementModal } from './components/CardsManagementModal';
 import { TransactionHistory } from './components/TransactionHistory';
 import { Login } from './components/Login';
 import { ModuleHub } from './components/ModuleHub';
+import { ApkHub } from './components/ApkHub';
+import { DriveTracker } from './components/DriveTracker';
 import { GymTracker } from './components/GymTracker';
 import { TaskTracker } from './components/TaskTracker';
 import { RecipeTracker } from './components/RecipeTracker';
@@ -78,6 +80,8 @@ export default function App() {
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [currentModule, setCurrentModule] = useState<
     | 'hub'
+    | 'apks'
+    | 'drive'
     | 'notas'
     | 'cajitas'
     | 'finanzas'
@@ -89,7 +93,7 @@ export default function App() {
     | 'cine'
     | 'compras'
     | 'objetivos'
-  >('hub');
+  >(window.location.pathname.replace(/\/$/, '') === '/apps' ? 'apks' : 'hub');
 
   // Estados de datos
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>(INITIAL_TARJETAS);
@@ -791,7 +795,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenNewModal={() => setIsTxModalOpen(true)}
         moduloActivo={
-          currentModule === 'notas' || currentModule === 'cajitas'
+          currentModule === 'notas' || currentModule === 'cajitas' || currentModule === 'apks' || currentModule === 'drive'
             ? currentModule
             : currentModule === 'riqueza'
             ? 'riqueza'
@@ -816,7 +820,11 @@ export default function App() {
 
       {/* Contenido Principal con Contenedor Central */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {currentModule === 'notas' ? (
+        {currentModule === 'apks' ? (
+          <ApkHub key={user!.id} user={user!} />
+        ) : currentModule === 'drive' ? (
+          <DriveTracker key={user!.id} user={user!} />
+        ) : currentModule === 'notas' ? (
           <NotesTracker key={user!.id} user={user!} demo={isDemoMode} />
         ) : (currentModule === 'finanzas' || currentModule === 'cajitas' || currentModule === 'compras') && (reserves.loading || reserves.error) ? (
           <div role="status" className="rounded-2xl border border-amber-500/40 p-6">{reserves.loading ? 'Cargando reservas para calcular tu disponible…' : `No se puede calcular el disponible sin cargar las reservas: ${reserves.error}. Ejecuta la migración de Supabase.`}<button className="ml-3 underline" onClick={() => void reserves.reload()}>Reintentar</button></div>

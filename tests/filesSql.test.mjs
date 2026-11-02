@@ -1,0 +1,42 @@
+import { PGlite } from '@electric-sql/pglite';
+import test from 'node:test';
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+test('PostgreSQL: sesion, privacidad, permisos, versiones y eliminacion consistente', async () => { const db=new PGlite(); try {
+await db.exec(`create role anon;create role authenticated;create schema auth;create schema storage;
+create table auth.users(id uuid primary key);
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create table storage.buckets(id text primary key,name text,public boolean,allowed_mime_types text[]);
+create table storage.objects(id uuid default gen_random_uuid() primary key,bucket_id text,name text,metadata jsonb);
+alter table storage.objects enable row level security;
+grant usage on schema auth,storage,public to anon,authenticated;
+grant select,insert,update,delete on storage.objects to authenticated;grant select on storage.objects to anon;
+create function storage.foldername(text) returns text[] language sql immutable as $$select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1]$$;
+create policy legacy_broad on storage.objects for all to authenticated using(true) with check(true);
+insert into auth.users values('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');`);
+const sql=fs.readFileSync('supabase/migrations/202611020001_apk_hub_drive.sql','utf8');await db.exec(sql);await db.exec(sql);
+assert.deepEqual((await db.query('select public from storage.buckets')).rows.map(r=>r.public),[false,false]);
+const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222';
+const as=async id=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id||'']);await db.exec(`set role ${id?'authenticated':'anon'}`)};
+const reserve=async(kind,name)=> (await db.query('select public.reserve_file_upload($1,$2,3,$3,$4,$5,$6,$7) as item',[kind,name,kind==='apk'?'application/vnd.android.package-archive':'text/plain',kind==='apk'?'Test App':'',kind==='apk'?'test-app':'','','Changes'])).rows[0].item;
+const rpc=(name,kind,id)=>db.query(`select public.${name}($1,$2)`,[kind,id]);
+const fail=async(fn)=>{await assert.rejects(fn)};
+await as(null);await fail(()=>db.query('select * from public.apk_releases'));await fail(()=>reserve('drive','anon.txt'));
+await as(a);const apk=await reserve('apk','test.apk');const drive=await reserve('drive','private.txt');
+await fail(()=>rpc('complete_file_upload','apk',apk.id));
+for(const [bucket,item]of[['apps-repository',apk],['personal-drive',drive]])await db.query('insert into storage.objects(bucket_id,name,metadata) values($1,$2,$3)',[bucket,item.storage_path,{size:3}]);
+await rpc('complete_file_upload','apk',apk.id);await rpc('complete_file_upload','drive',drive.id);
+await as(b);assert.equal((await db.query('select * from public.apk_releases')).rows.length,1);assert.equal((await db.query('select * from public.drive_files')).rows.length,0);
+assert.equal((await db.query("select * from storage.objects where bucket_id='personal-drive'")).rows.length,0);
+await fail(()=>rpc('begin_file_deletion','apk',apk.id));await fail(()=>rpc('begin_file_deletion','drive',drive.id));
+assert.equal((await db.query('delete from storage.objects where name=$1 returning id',[apk.storage_path])).rows.length,0);
+assert.equal((await db.query('update storage.objects set metadata=$1 where name=$2 returning id',[{size:100},apk.storage_path])).rows.length,0);
+await as(a);await rpc('begin_file_deletion','drive',drive.id);await fail(()=>rpc('finish_file_deletion','drive',drive.id));
+assert.equal((await db.query('select status from public.drive_files where id=$1',[drive.id])).rows[0].status,'deleting');
+await db.query('delete from storage.objects where name=$1',[drive.storage_path]);await rpc('finish_file_deletion','drive',drive.id);await rpc('finish_file_deletion','drive',drive.id);
+await rpc('begin_file_deletion','apk',apk.id);await db.query('delete from storage.objects where name=$1',[apk.storage_path]);await rpc('finish_file_deletion','apk',apk.id);
+const newer=await reserve('apk','new.apk');assert.equal(newer.release_number,2);
+await fail(()=>db.query('delete from public.apk_releases where id=$1',[newer.id]));
+
+
+} finally { await db.close(); } });

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
 
-const supabaseUrl =
+export const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://ppocqqzmobdyuxvfcgjm.supabase.co';

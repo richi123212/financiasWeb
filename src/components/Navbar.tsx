@@ -17,6 +17,8 @@ import {
   Vault,
   NotebookPen,
   PiggyBank,
+  Package,
+  Cloud,
 } from 'lucide-react';
 import type { MetricasFinancieras, UserProfile } from '../types';
 
@@ -28,6 +30,8 @@ interface NavbarProps {
   setActiveTab: (tab: 'dashboard' | 'tarjetas' | 'msi' | 'gastos_futuros' | 'inversiones' | 'transacciones') => void;
   onOpenNewModal: () => void;
   moduloActivo:
+    | 'apks'
+    | 'drive'
     | 'notas'
     | 'cajitas'
     | 'finanzas'
@@ -41,6 +45,8 @@ interface NavbarProps {
     | 'objetivos';
   onCambiarModulo: (
     modulo:
+      | 'apks'
+      | 'drive'
       | 'notas'
       | 'cajitas'
       | 'finanzas'
@@ -109,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold tracking-tight text-white">
-                  {moduloActivo === 'notas' ? 'Notas & Carpetas' : moduloActivo === 'cajitas' ? 'Reserva & Ahorros' : moduloActivo === 'finanzas' ? (
+                  {moduloActivo === 'apks' ? 'APK Hub' : moduloActivo === 'drive' ? 'Drive Personal' : moduloActivo === 'notas' ? 'Notas & Carpetas' : moduloActivo === 'cajitas' ? 'Reserva & Ahorros' : moduloActivo === 'finanzas' ? (
                     <>
                       Finan<span className="text-emerald-400">zas</span>
                     </>
@@ -156,6 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Selector Central de Módulos con scroll suave */}
           <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner overflow-x-auto no-scrollbar max-w-full">
+            {([{ id: 'apks', label: 'APK Hub', Icon: Package }, { id: 'drive', label: 'Drive', Icon: Cloud }] as const).map(item => <button key={item.id} onClick={() => onCambiarModulo(item.id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${moduloActivo === item.id ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-400 hover:text-white'}`}><item.Icon className="w-3.5 h-3.5" />{item.label}</button>)}
             {(['notas', 'cajitas'] as const).map(module => <button key={module} onClick={() => onCambiarModulo(module)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${moduloActivo === module ? module === 'notas' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'}`}>{module === 'notas' ? <NotebookPen className="w-3.5 h-3.5" /> : <PiggyBank className="w-3.5 h-3.5" />}{module === 'notas' ? 'Notas' : 'Reserva & Ahorros'}</button>)}
             <button
               onClick={() => onCambiarModulo('finanzas')}
@@ -288,7 +295,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {user?.nombre || user?.email || 'Richi'}
                 </span>
                 <span className="text-[10px] text-slate-400">
-                  {moduloActivo === 'notas'
+                  {moduloActivo === 'apks'
+                    ? 'Descargas y versiones'
+                    : moduloActivo === 'drive'
+                    ? 'Archivos privados'
+                    : moduloActivo === 'notas'
                     ? 'Ideas & Carpetas'
                     : moduloActivo === 'cajitas'
                     ? 'Metas & Ahorro'
